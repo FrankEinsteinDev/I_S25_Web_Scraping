@@ -69,8 +69,6 @@ def scrape_boe(max_items=MAX_ITEMS):
     hoy = datetime.today().strftime("%Y%m%d")
     boe_url = f'https://www.boe.es/datosabiertos/api/boe/sumario/{hoy}'
 
-    print(boe_url)
-
     try:
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
