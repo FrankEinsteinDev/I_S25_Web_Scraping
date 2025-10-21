@@ -31,7 +31,7 @@
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h2 class="mb-0">Departamentos</h2>
             <a href="{{ url_for('do_scrape') }}" class="btn btn-primary">
-                 Actualizar datos BOE
+                Actualizar datos BOE
             </a>
         </div>
         <div class="row g-4">
@@ -40,10 +40,28 @@
                 <a href="{{ url_for('mostrar_departamento', nombre=dep['departamento']) }}"
                     class="text-decoration-none">
                     <div class="card h-100 shadow-sm">
-                        <img src="{{ url_for('static', filename='img/' + dep['departamento']|replace(' ', '_') + '.jpg') }}"
-                            class="card-img-top" alt="{{ dep['departamento'] }}"
+                        <img src="{{ url_for('static', filename='img/' 
+                    + dep['departamento']
+                        |replace('Á','A')
+                        |replace('É','E')
+                        |replace('Í','I')
+                        |replace('Ó','O')
+                        |replace('Ú','U')
+                        |replace('Ü','U')
+                        |replace('Ñ','N')
+                        |replace('á','a')
+                        |replace('é','e')
+                        |replace('í','i')
+                        |replace('ó','o')
+                        |replace('ú','u')
+                        |replace('ü','u')
+                        |replace('ñ','n')
+                        |replace(' ', '_')
+                        |replace(',', '')
+                        |replace('.', '')
+                        + '.avif') }}" class="card-img-top" alt="{{ dep['departamento'] }}"
                             onerror="this.src='{{ url_for('static', filename='img/default.svg') }}'">
-                        <div class="card-body">
+                        <div class="card-body text-center">
                             <h5 class="card-title">{{ dep['departamento'] }}</h5>
                         </div>
                     </div>
