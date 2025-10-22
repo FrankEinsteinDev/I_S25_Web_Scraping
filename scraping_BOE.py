@@ -178,7 +178,16 @@ def scrape_boe():
     """
     init_db()
     db = get_db()
+<<<<<<< HEAD
     newly_inserted = []
+=======
+
+     # eliminar registros antiguos
+    db.execute("DELETE FROM oposiciones")
+    db.commit()
+
+    collected = 0
+>>>>>>> origin/Demo-branch
 
     fecha = datetime.today()
 
