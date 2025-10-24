@@ -160,6 +160,9 @@ def init_db():
                 db.execute('UPDATE oposiciones SET provincia = ? WHERE id = ?', (provincia, row['id']))
         print(f"Actualizado {len(rows)} registros con información de provincia.")
     
+             #   fecha  TEXT
+# )
+    ''')
     db.commit()
 
 
@@ -265,7 +268,7 @@ def scrape_boe():
             try:
                 db.execute('''
                     INSERT INTO oposiciones (identificador, control, titulo, url_html, url_pdf, departamento, fecha, provincia)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES ( ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (identificador, control, titulo, url_html, url_pdf, departamento, hoy, provincia))
                 db.commit()
                 collected += 1

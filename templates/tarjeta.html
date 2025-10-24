@@ -91,6 +91,7 @@
                         <th>Título</th>
                         <th>Control</th>
                         <th>PDF</th>
+                        <th>BOE</th>
                         <th>Fecha</th>
                     </tr>
                 </thead>
@@ -101,6 +102,13 @@
                         <td>{{ row['titulo'] }}</td>
                         <td>{{ row['control'] }}</td>
                         <td><a href="{{ row['url_pdf'] }}" target="_blank" class="btn btn-sm btn-primary">Ver PDF</a>
+                        </td>
+                        <td>
+                            {% if row['url_html'] %}
+                            <a href="{{ row['url_html'] }}" target="_blank" class="btn btn-sm btn-secondary">Ver BOE</a>
+                            {% else %}
+                            N/A
+                            {% endif %}
                         </td>
                         <td>{{ row['fecha']|format_date }}</td>
                     </tr>
@@ -113,7 +121,6 @@
             </table>
         </div>
     </div>
-
 
 </body>
 
