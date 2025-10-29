@@ -21,3 +21,28 @@ body {
     transform: scale(1.05);
     transition: transform 0.15s ease-in-out;
 }
+
+/* 🔹 Fila completamente resaltada para las oposiciones nuevas (día actual) */
+.nueva-oposicion {
+  background-color: #ffde8a !important; /* Amarillo claro en toda la fila */
+  transition: background-color 0.3s ease-in-out, transform 0.2s ease, box-shadow 0.3s ease-in-out;
+  box-shadow: 0 0 10px rgba(255, 193, 7, 0.5);
+}
+
+/* 🔹 Efecto al pasar el ratón */
+.nueva-oposicion:hover {
+  background-color: #ffd54f !important; /* Amarillo más intenso */
+  transform: scale(1.01);
+  box-shadow: 0 0 15px rgba(255, 193, 7, 0.7);
+}
+
+/* 🔹 Etiqueta “Nuevo” */
+.badge-nuevo {
+  background-color: #ffbf00;
+  color: #000;
+  font-weight: bold;
+  border-radius: 8px;
+  padding: 3px 8px;
+  font-size: 0.8rem;
+  margin-left: 6px;
+}
