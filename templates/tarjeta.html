@@ -97,11 +97,20 @@ Incluye botón de retorno a la página principal y paginación.
                 </thead>
                 <tbody>
                     {% for row in rows %}
-                    <tr>
+                    <tr class="{% if row['fecha'] == hoy %}nueva-oposicion{% endif %}">
                         <td>{{ row['identificador'] }}</td>
-                        <td>{{ row['titulo'] }}</td>
+                        <td>
+                            {{ row['titulo'] }}
+                            {% if row['fecha'] == hoy %}
+                                <span class="badge-nuevo">🟡 Nuevo</span>
+                            {% endif %}
+                        </td>
                         <td>{{ row['control'] }}</td>
-                        <td><a href="{{ row['url_pdf'] }}" target="_blank" class="btn btn-sm btn-primary">Ver PDF</a></td>
+                        <td>
+                            {% if row['url_pdf'] %}
+                            <a href="{{ row['url_pdf'] }}" target="_blank" class="btn btn-sm btn-primary">Ver PDF</a>
+                            {% endif %}
+                        </td>
                         <td>{{ row['fecha']|format_date }}</td>
                     </tr>
                     {% else %}
