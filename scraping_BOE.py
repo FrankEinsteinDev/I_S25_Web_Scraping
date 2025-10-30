@@ -19,9 +19,16 @@ from flask import (
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_mail import Mail, Message
 
-DB_PATH = 'oposiciones.db'
-app = Flask(__name__)
+import os
+from pathlib import Path
+from flask import Flask
+
+app = Flask(__name__, instance_relative_config=True)
+Path(app.instance_path).mkdir(parents=True, exist_ok=True)
+DB_PATH = os.path.join(app.instance_path, "oposiciones.db")
+
 app.secret_key = 'clave-secreta-para-flask-sessions-cambiar-en-produccion'
+
 
 # === Configuración básica (lee de variables de entorno) ===
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'cambia-esto')
