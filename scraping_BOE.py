@@ -17,6 +17,7 @@ from flask import (
 from bs4 import BeautifulSoup
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_mail import Mail, Message
+from flask import jsonify
 
 DB_PATH = os.getenv('DB_PATH', 'oposiciones.db')
 app = Flask(__name__)
@@ -113,6 +114,16 @@ def init_db():
     """)
 
     db.execute("""
+        CREATE TABLE IF NOT EXISTS visitas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            oposicion_id INTEGER NOT NULL,
+            fecha_visita TEXT NOT NULL,
+            UNIQUE(user_id, oposicion_id)
+        )
+    """)
+
+    db.execute("""
         CREATE TABLE IF NOT EXISTS user_departamentos (
             user_id INTEGER NOT NULL,
             departamento TEXT NOT NULL,
@@ -121,6 +132,7 @@ def init_db():
         )
     """)
 
+    
     db.commit()
 
 # --------------------
@@ -449,6 +461,23 @@ def scrape_boe():
     return newly_inserted
 
 # --------------------
+# Registrar oposiciones vistas
+# --------------------
+# 🆕 Función para registrar una visita
+def registrar_visita(user_id, oposicion_id):
+    db = get_db()
+    fecha = datetime.utcnow().isoformat()
+    try:
+        db.execute(
+            "INSERT OR REPLACE INTO visitas (user_id, oposicion_id, fecha_visita) VALUES (?, ?, ?)",
+            (user_id, oposicion_id, fecha)
+        )
+        db.commit()
+    except Exception as e:
+        print(f"Error al registrar visita: {e}")
+
+
+# --------------------
 # Rutas Flask
 # --------------------
 
@@ -504,6 +533,9 @@ def mostrar_departamento(nombre):
     # 🔹 Fecha actual para marcar las oposiciones nuevas
     hoy = datetime.today().strftime("%Y%m%d")
 
+    user = current_user()
+    user_id = user["id"] if user else None
+
     busqueda = request.args.get("busqueda", "")
     provincia = request.args.get("provincia", "")
     fecha_desde = request.args.get("fecha_desde", "")
@@ -547,6 +579,29 @@ def mostrar_departamento(nombre):
         "SELECT DISTINCT provincia FROM oposiciones WHERE provincia IS NOT NULL ORDER BY provincia"
     ).fetchall()
 
+    # 🔵 Obtener las oposiciones visitadas por el usuario actual
+    visitadas = []
+    user = current_user()
+    if user:
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS visitas (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                oposicion_id INTEGER,
+                fecha_visita TEXT,
+                UNIQUE(user_id, oposicion_id)
+            )
+        """)
+        db.commit()
+
+        visitadas = [
+            row["oposicion_id"]
+            for row in db.execute(
+                "SELECT oposicion_id FROM visitas WHERE user_id = ?", (user["id"],)
+            ).fetchall()
+        ]
+
+
     return render_template(
         "tarjeta.html",
         departamento=nombre,
@@ -559,8 +614,8 @@ def mostrar_departamento(nombre):
         fecha_desde=fecha_desde,
         fecha_hasta=fecha_hasta,
         hoy=hoy,
-        user=user,
-        oposiciones_vistas=oposiciones_vistas
+        visitadas=visitadas,
+        user=user,  
     )
 
 
@@ -658,15 +713,13 @@ def preferencias():
     )
 
 
-@app.route('/marcar_vista/<int:oposicion_id>', methods=['POST'])
+@app.route("/marcar_visitada/<int:oposicion_id>", methods=["POST"])
 @login_required
-def marcar_vista(oposicion_id):
-    """Marca una oposición como vista por el usuario actual."""
+def marcar_visitada(oposicion_id):
     user = current_user()
-    if user:
-        marcar_oposicion_vista(user['id'], oposicion_id)
-        return jsonify({'status': 'ok'}), 200
-    return jsonify({'status': 'error', 'message': 'Usuario no autenticado'}), 401
+    print(f"🟢 Registro de visita recibido: user={user['id']}, oposicion_id={oposicion_id}")
+    registrar_visita(user["id"], oposicion_id)
+    return jsonify({"ok": True})
 
 
 if __name__ == '__main__':
