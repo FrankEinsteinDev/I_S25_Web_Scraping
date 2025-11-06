@@ -121,16 +121,6 @@ def init_db():
         )
     """)
 
-    db.execute("""
-        CREATE TABLE IF NOT EXISTS oposiciones_vistas (
-            user_id INTEGER NOT NULL,
-            oposicion_id INTEGER NOT NULL,
-            fecha_vista TEXT NOT NULL,
-            PRIMARY KEY (user_id, oposicion_id),
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-            FOREIGN KEY (oposicion_id) REFERENCES oposiciones(id) ON DELETE CASCADE
-        )
-    """)
     db.commit()
 
 # --------------------
