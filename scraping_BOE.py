@@ -1,10 +1,8 @@
 """scraping_boe.py
 
 Aplicación Flask para Web Scraping del BOE (Boletín Oficial del Estado)
-con sistema de usuarios (sign up / login) y notificación por email de
+con sistema de usuarios (registrarse / iniciar sesión) y notificación por email de
 nuevas oposiciones detectadas.
-
-Ampliado con auth + email: 2025
 """
 
 import os
@@ -14,7 +12,7 @@ from datetime import datetime, timedelta, date
 
 import requests
 from flask import (
-    Flask, request, g, redirect, url_for, render_template, flash
+    Flask, request, g, redirect, url_for, render_template, session, flash, jsonify
 )
 from bs4 import BeautifulSoup
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -22,6 +20,7 @@ from flask_mail import Mail, Message
 from flask_login import (
     LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 )
+from flask import jsonify
 
 # --------------------
 # Configuración Flask
@@ -134,6 +133,15 @@ def init_db():
             created_at TEXT NOT NULL
         )
     """)
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS visitas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            oposicion_id INTEGER NOT NULL,
+            fecha_visita TEXT NOT NULL,
+            UNIQUE(user_id, oposicion_id)
+        )
+    """)
     db.commit()
 
 # --------------------
@@ -152,12 +160,267 @@ def find_user_by_email(email):
     return db.execute("SELECT * FROM users WHERE email = ?", (email.lower(),)).fetchone()
 
 # --------------------
+# Helpers Departamentos Usuario
+# --------------------
+
+def get_user_departamentos(user_id):
+    """Obtiene la lista de departamentos seleccionados por el usuario."""
+    db = get_db()
+    rows = db.execute(
+        "SELECT departamento FROM user_departamentos WHERE user_id = ?",
+        (user_id,)
+    ).fetchall()
+    return [row['departamento'] for row in rows]
+
+
+def set_user_departamentos(user_id, departamentos):
+    """Establece los departamentos seleccionados por el usuario.
+    
+    Args:
+        user_id: ID del usuario
+        departamentos: Lista de nombres de departamentos
+    """
+    db = get_db()
+    # Eliminar selecciones anteriores
+    db.execute("DELETE FROM user_departamentos WHERE user_id = ?", (user_id,))
+    # Insertar nuevas selecciones
+    for dep in departamentos:
+        if dep:
+            db.execute(
+                "INSERT INTO user_departamentos (user_id, departamento) VALUES (?, ?)",
+                (user_id, dep)
+            )
+    db.commit()
+
+
+def get_all_departamentos():
+    """Obtiene todos los departamentos únicos disponibles en la base de datos."""
+    db = get_db()
+    rows = db.execute(
+        "SELECT DISTINCT departamento FROM oposiciones WHERE departamento IS NOT NULL ORDER BY departamento"
+    ).fetchall()
+    return [row['departamento'] for row in rows]
+
+# --------------------
+# Helpers Oposiciones Vistas
+# --------------------
+
+def marcar_oposicion_vista(user_id, oposicion_id):
+    """Marca una oposición como vista por el usuario."""
+    db = get_db()
+    try:
+        db.execute(
+            "INSERT OR REPLACE INTO oposiciones_vistas (user_id, oposicion_id, fecha_vista) VALUES (?, ?, ?)",
+            (user_id, oposicion_id, datetime.utcnow().isoformat())
+        )
+        db.commit()
+    except sqlite3.IntegrityError:
+        # Ya existe, actualizar fecha
+        db.execute(
+            "UPDATE oposiciones_vistas SET fecha_vista = ? WHERE user_id = ? AND oposicion_id = ?",
+            (datetime.utcnow().isoformat(), user_id, oposicion_id)
+        )
+        db.commit()
+
+
+def get_oposiciones_vistas(user_id):
+    """Obtiene el conjunto de IDs de oposiciones vistas por el usuario."""
+    db = get_db()
+    rows = db.execute(
+        "SELECT oposicion_id FROM oposiciones_vistas WHERE user_id = ?",
+        (user_id,)
+    ).fetchall()
+    return {row['oposicion_id'] for row in rows}
+
+
+def es_oposicion_vista(user_id, oposicion_id):
+    """Verifica si una oposición ha sido vista por el usuario."""
+    if not user_id:
+        return False
+    db = get_db()
+    row = db.execute(
+        "SELECT 1 FROM oposiciones_vistas WHERE user_id = ? AND oposicion_id = ?",
+        (user_id, oposicion_id)
+    ).fetchone()
+    return row is not None
+
+def calcular_dias_habiles(num_dias=20):
+    """
+    Calcula las fechas de los últimos N días hábiles (excluyendo sábados y domingos).
+    
+    Args:
+        num_dias: Número de días hábiles a calcular (por defecto 20)
+    
+    Returns:
+        tuple: (fecha_desde, fecha_hasta) en formato YYYYMMDD
+    """
+    hoy = datetime.today().date()
+    fecha_hasta = hoy.strftime('%Y%m%d')
+    
+    # Empezar desde hoy (o último viernes si es fin de semana)
+    fecha_actual = hoy
+    dias_habiles_encontrados = 0
+    fecha_desde = None
+    
+    # Si hoy es fin de semana, no contar hoy y empezar desde el último viernes
+    if fecha_actual.weekday() >= 5:  # 5=sábado, 6=domingo
+        dias_retroceder = fecha_actual.weekday() - 4  # 1 si sábado, 2 si domingo
+        fecha_actual -= timedelta(days=dias_retroceder)
+    
+    # Contar días hábiles retrocediendo hasta tener los N días
+    while dias_habiles_encontrados < num_dias:
+        # Verificar si es día hábil (lunes=0, domingo=6)
+        if fecha_actual.weekday() < 5:  # 0-4 = lunes a viernes
+            dias_habiles_encontrados += 1
+            fecha_desde = fecha_actual  # Guardar el día más antiguo encontrado
+            if dias_habiles_encontrados == num_dias:
+                break
+        fecha_actual -= timedelta(days=1)
+        
+        if (hoy - fecha_actual).days > 365:
+            break
+    
+    if fecha_desde is None:
+        fecha_desde = fecha_actual
+    
+    fecha_desde_str = fecha_desde.strftime('%Y%m%d')
+    return fecha_desde_str, fecha_hasta
+
+# --------------------
+# Helpers Departamentos Usuario
+# --------------------
+def get_user_departamentos(user_id):
+    """Obtiene la lista de departamentos seleccionados por el usuario."""
+    db = get_db()
+    rows = db.execute(
+        "SELECT departamento FROM user_departamentos WHERE user_id = ?",
+        (user_id,)
+    ).fetchall()
+    return [row['departamento'] for row in rows]
+
+
+def set_user_departamentos(user_id, departamentos):
+    """Establece los departamentos seleccionados por el usuario.
+    
+    Args:
+        user_id: ID del usuario
+        departamentos: Lista de nombres de departamentos
+    """
+    db = get_db()
+    # Eliminar selecciones anteriores
+    db.execute("DELETE FROM user_departamentos WHERE user_id = ?", (user_id,))
+    # Insertar nuevas selecciones
+    for dep in departamentos:
+        if dep:
+            db.execute(
+                "INSERT INTO user_departamentos (user_id, departamento) VALUES (?, ?)",
+                (user_id, dep)
+            )
+    db.commit()
+
+
+def get_all_departamentos():
+    """Obtiene todos los departamentos únicos disponibles en la base de datos."""
+    db = get_db()
+    rows = db.execute(
+        "SELECT DISTINCT departamento FROM oposiciones WHERE departamento IS NOT NULL ORDER BY departamento"
+    ).fetchall()
+    return [row['departamento'] for row in rows]
+
+# --------------------
+# Helpers Oposiciones Vistas
+# --------------------
+
+def marcar_oposicion_vista(user_id, oposicion_id):
+    """Marca una oposición como vista por el usuario."""
+    db = get_db()
+    try:
+        db.execute(
+            "INSERT OR REPLACE INTO oposiciones_vistas (user_id, oposicion_id, fecha_vista) VALUES (?, ?, ?)",
+            (user_id, oposicion_id, datetime.utcnow().isoformat())
+        )
+        db.commit()
+    except sqlite3.IntegrityError:
+        # Ya existe, actualizar fecha
+        db.execute(
+            "UPDATE oposiciones_vistas SET fecha_vista = ? WHERE user_id = ? AND oposicion_id = ?",
+            (datetime.utcnow().isoformat(), user_id, oposicion_id)
+        )
+        db.commit()
+
+
+def get_oposiciones_vistas(user_id):
+    """Obtiene el conjunto de IDs de oposiciones vistas por el usuario."""
+    db = get_db()
+    rows = db.execute(
+        "SELECT oposicion_id FROM oposiciones_vistas WHERE user_id = ?",
+        (user_id,)
+    ).fetchall()
+    return {row['oposicion_id'] for row in rows}
+
+
+def es_oposicion_vista(user_id, oposicion_id):
+    """Verifica si una oposición ha sido vista por el usuario."""
+    if not user_id:
+        return False
+    db = get_db()
+    row = db.execute(
+        "SELECT 1 FROM oposiciones_vistas WHERE user_id = ? AND oposicion_id = ?",
+        (user_id, oposicion_id)
+    ).fetchone()
+    return row is not None
+
+def calcular_dias_habiles(num_dias=20):
+    """
+    Calcula las fechas de los últimos N días hábiles (excluyendo sábados y domingos).
+    
+    Args:
+        num_dias: Número de días hábiles a calcular (por defecto 20)
+    
+    Returns:
+        tuple: (fecha_desde, fecha_hasta) en formato YYYYMMDD
+    """
+    hoy = datetime.today().date()
+    fecha_hasta = hoy.strftime('%Y%m%d')
+    
+    # Empezar desde hoy (o último viernes si es fin de semana)
+    fecha_actual = hoy
+    dias_habiles_encontrados = 0
+    fecha_desde = None
+    
+    # Si hoy es fin de semana, no contar hoy y empezar desde el último viernes
+    if fecha_actual.weekday() >= 5:  # 5=sábado, 6=domingo
+        dias_retroceder = fecha_actual.weekday() - 4  # 1 si sábado, 2 si domingo
+        fecha_actual -= timedelta(days=dias_retroceder)
+    
+    # Contar días hábiles retrocediendo hasta tener los N días
+    while dias_habiles_encontrados < num_dias:
+        # Verificar si es día hábil (lunes=0, domingo=6)
+        if fecha_actual.weekday() < 5:  # 0-4 = lunes a viernes
+            dias_habiles_encontrados += 1
+            fecha_desde = fecha_actual  # Guardar el día más antiguo encontrado
+            if dias_habiles_encontrados == num_dias:
+                break
+        fecha_actual -= timedelta(days=1)
+        
+        if (hoy - fecha_actual).days > 365:
+            break
+    
+    if fecha_desde is None:
+        fecha_desde = fecha_actual
+    
+    fecha_desde_str = fecha_desde.strftime('%Y%m%d')
+    return fecha_desde_str, fecha_hasta
+
+# --------------------
 # Provincia / Scraper / Email
 # --------------------
 def extraer_provincia(texto):
     if not texto:
         return None
     texto = re.sub(r"\s+", " ", texto).strip()
+
+    # Lista abreviada y simple de provincias 
     provincias = [
         'Madrid', 'Barcelona', 'Valencia', 'Sevilla', 'Zaragoza', 'Málaga', 'Murcia',
         'Alicante', 'Córdoba', 'Granada', 'Burgos', 'Palencia', 'A Coruña', 'Cantabria',
@@ -268,23 +531,80 @@ def scrape_boe():
     return newly_inserted
 
 # --------------------
+# Registrar oposiciones vistas
+# --------------------
+# 🆕 Función para registrar una visita
+def registrar_visita(user_id, oposicion_id):
+    db = get_db()
+    fecha = datetime.utcnow().isoformat()
+    try:
+        db.execute(
+            "INSERT OR REPLACE INTO visitas (user_id, oposicion_id, fecha_visita) VALUES (?, ?, ?)",
+            (user_id, oposicion_id, fecha)
+        )
+        db.commit()
+    except Exception as e:
+        print(f"Error al registrar visita: {e}")
+
+
+# --------------------
 # Rutas Flask
 # --------------------
 @app.route('/')
 def index():
     init_db()
     db = get_db()
-    hoy = datetime.today().strftime('%Y%m%d')
-    deps = db.execute(
-        'SELECT DISTINCT departamento FROM oposiciones WHERE departamento IS NOT NULL AND fecha = ? ORDER BY departamento',
-        (hoy,)
-    ).fetchall()
-    return render_template('index.html', departamentos=deps, user=current_user)
+
+    user = current_user()
+    
+    # Si el usuario está logueado y tiene departamentos seleccionados, filtrar por últimos 20 días hábiles
+    if user:
+        user_deps = get_user_departamentos(user['id'])
+        if user_deps:
+            # Calcular últimos 20 días hábiles
+            fecha_desde, fecha_hasta = calcular_dias_habiles(20)
+            
+            # Filtrar solo departamentos seleccionados por el usuario en los últimos 20 días hábiles
+            placeholders = ','.join(['?'] * len(user_deps))
+            query = f'''
+                SELECT DISTINCT departamento FROM oposiciones 
+                WHERE departamento IS NOT NULL 
+                AND fecha >= ? 
+                AND fecha <= ?
+                AND departamento IN ({placeholders})
+                ORDER BY departamento
+            '''
+            deps = db.execute(query, [fecha_desde, fecha_hasta] + user_deps).fetchall()
+        else:
+            # Usuario sin departamentos seleccionados, mostrar solo de hoy
+            hoy = datetime.today().strftime('%Y%m%d')
+            deps = db.execute(
+                'SELECT DISTINCT departamento FROM oposiciones WHERE departamento IS NOT NULL AND fecha = ? ORDER BY departamento',
+                (hoy,)
+            ).fetchall()
+    else:
+        # Usuario no logueado, mostrar solo de hoy
+        hoy = datetime.today().strftime('%Y%m%d')
+        deps = db.execute(
+            'SELECT DISTINCT departamento FROM oposiciones WHERE departamento IS NOT NULL AND fecha = ? ORDER BY departamento',
+            (hoy,)
+        ).fetchall()
+
+    return render_template('index.html', departamentos=deps, user=user)
+
+
 
 @app.route("/departamento/<nombre>")
 def mostrar_departamento(nombre):
     db = get_db()
+    user = current_user()
+
+    # 🔹 Fecha actual para marcar las oposiciones nuevas
     hoy = datetime.today().strftime("%Y%m%d")
+
+    user = current_user()
+    user_id = user["id"] if user else None
+
     busqueda = request.args.get("busqueda", "")
     provincia = request.args.get("provincia", "")
     fecha_desde = request.args.get("fecha_desde", "")
@@ -307,6 +627,12 @@ def mostrar_departamento(nombre):
     sql += " ORDER BY fecha DESC LIMIT ? OFFSET ?"
     params += [por_pagina, offset]
     rows = db.execute(sql, params).fetchall()
+
+    # Obtener oposiciones vistas por el usuario
+    oposiciones_vistas = set()
+    if user:
+        oposiciones_vistas = get_oposiciones_vistas(user['id'])
+
     total = db.execute(
         "SELECT COUNT(*) FROM oposiciones WHERE departamento = ?", (nombre,)
     ).fetchone()[0]
@@ -314,6 +640,30 @@ def mostrar_departamento(nombre):
     provincias = db.execute(
         "SELECT DISTINCT provincia FROM oposiciones WHERE provincia IS NOT NULL ORDER BY provincia"
     ).fetchall()
+
+    # 🔵 Obtener las oposiciones visitadas por el usuario actual
+    visitadas = []
+    user = current_user()
+    if user:
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS visitas (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                oposicion_id INTEGER,
+                fecha_visita TEXT,
+                UNIQUE(user_id, oposicion_id)
+            )
+        """)
+        db.commit()
+
+        visitadas = [
+            row["oposicion_id"]
+            for row in db.execute(
+                "SELECT oposicion_id FROM visitas WHERE user_id = ?", (user["id"],)
+            ).fetchall()
+        ]
+
+
     return render_template(
         "tarjeta.html",
         departamento=nombre,
@@ -325,7 +675,9 @@ def mostrar_departamento(nombre):
         provincia_filtro=provincia,
         fecha_desde=fecha_desde,
         fecha_hasta=fecha_hasta,
-        hoy=hoy
+        hoy=hoy,
+        visitadas=visitadas,
+        user=user,  
     )
 
 @app.route('/scrape')
@@ -370,6 +722,40 @@ def logout():
     logout_user()
     flash("Sesión cerrada.", "info")
     return redirect(url_for('index'))
+
+
+@app.route('/preferencias', methods=['GET', 'POST'])
+@login_required
+def preferencias():
+    """Página para que el usuario seleccione sus departamentos favoritos."""
+    user = current_user()
+    
+    if request.method == 'POST':
+        # Obtener departamentos seleccionados del formulario
+        departamentos_seleccionados = request.form.getlist('departamento')
+        set_user_departamentos(user['id'], departamentos_seleccionados)
+        flash(f"Se han guardado {len(departamentos_seleccionados)} departamentos seleccionados.", "success")
+        return redirect(url_for('index'))
+    
+    # GET: mostrar formulario con checklist
+    todos_departamentos = get_all_departamentos()
+    departamentos_usuario = set(get_user_departamentos(user['id']))
+    
+    return render_template(
+        'preferencias.html',
+        user=user,
+        todos_departamentos=todos_departamentos,
+        departamentos_usuario=departamentos_usuario
+    )
+
+
+@app.route("/marcar_visitada/<int:oposicion_id>", methods=["POST"])
+@login_required
+def marcar_visitada(oposicion_id):
+    user = current_user()
+    print(f"🟢 Registro de visita recibido: user={user['id']}, oposicion_id={oposicion_id}")
+    registrar_visita(user["id"], oposicion_id)
+    return jsonify({"ok": True})
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
