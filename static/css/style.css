@@ -393,35 +393,34 @@ body {
   }
 } 
 
-/* 🔵 Fila completamente resaltada para oposiciones visitadas */
+/* ----- Oposición visitada: fondo completo azul claro ----- */
 .visitada-oposicion {
-  background-color: #b3d4ff !important;  /* Azul más fuerte */
-  transition: background-color 0.3s ease-in-out, transform 0.2s ease;
-  box-shadow: 0 0 12px rgba(0, 86, 179, 0.5);
-  position: relative;
-  z-index: 1;
+  background-color: #e6f0ff !important;   /* azul muy claro */
+  color: #003366 !important;              /* texto oscuro para contraste */
+  transition: background-color 0.25s ease, transform 0.12s ease;
+  box-shadow: 0 0 8px rgba(0, 102, 204, 0.10);
 }
 
-/* 🔵 Hover más intenso */
+/* efecto hover mantenido pero sutil */
 .visitada-oposicion:hover {
-  background-color: #82b3ff !important; /* Azul vibrante */
-  transform: scale(1.01);
-  box-shadow: 0 0 18px rgba(0, 86, 179, 0.6);
+  background-color: #d3e6ff !important;
+  transform: translateY(-1px);
 }
 
-/* Si una oposición es nueva y visitada, gana el azul */
-.nueva-oposicion.visitada {
-  background-color: #0c47e9 !important;
-  box-shadow: 0 0 15px rgba(0, 123, 255, 0.5);
-}
-
-/* 🔵 Etiqueta “Visitada” */
+/* Badge visitada */
 .badge-visitada {
-  background-color: #0d6efd;
+  background-color: #0b69ff;
   color: #fff;
-  font-weight: 600;
+  font-weight: 700;
   border-radius: 8px;
   padding: 3px 8px;
   font-size: 0.8rem;
   margin-left: 6px;
+}
+
+/* si quieres que también el botón PDF parezca "visitado" */
+.visitada-oposicion .btn-pdf {
+  background-color: #0b69ff;
+  border-color: #084fc7;
+  color: #fff;
 }

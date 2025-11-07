@@ -180,28 +180,65 @@ Incluye botón de retorno a la página principal y paginación.
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-  <script>
+    <script>
   document.addEventListener('DOMContentLoaded', () => {
+    // Seleccionamos todos los botones/links PDF que tienen data-id y href
     document.querySelectorAll('.btn-pdf').forEach(btn => {
-      btn.addEventListener('click', e => {
-        const id = btn.dataset.id;
+      btn.addEventListener('click', function (e) {
+        e.preventDefault(); // evitamos la navegación automática
 
-        // Evitar abrir el PDF antes de registrar
-        fetch(`/marcar_visitada/${id}`, { 
-         method: 'POST',
-          headers: {
-            'X-Requested-With': 'XMLHttpRequest'
+        const id = this.dataset.id;
+        const pdfUrl = this.getAttribute('href');
+        const tr = this.closest('tr');
+
+        // 1) Intentamos usar sendBeacon si está disponible (no bloquea navegación)
+        const beaconUrl = `/marcar_visitada/${id}`;
+        let beaconSent = false;
+
+        try {
+          if (navigator.sendBeacon) {
+            // sendBeacon envía POST con body; usamos un blob vacío o un JSON pequeño
+            const payload = JSON.stringify({ts: new Date().toISOString()});
+            const blob = new Blob([payload], { type: 'application/json' });
+            beaconSent = navigator.sendBeacon(beaconUrl, blob);
           }
-        })
-        .then(res => {
-          if (res.ok) {
-            // Marcar visualmente como visitada
-            btn.closest('tr').classList.add('visitada');
-          } else {
-            console.warn('Error al registrar la visita');
+        } catch (err) {
+          console.warn('sendBeacon falló:', err);
+          beaconSent = false;
+        }
+
+        // 2) Si sendBeacon no está disponible, hacemos fetch en background (no await)
+        if (!beaconSent) {
+          fetch(beaconUrl, {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/json' },
+            body: JSON.stringify({ts: new Date().toISOString()})
+          }).then(resp => {
+            if (!resp.ok) console.warn('marcar_visitada respondió', resp.status);
+          }).catch(err => console.warn('Error fetch marcar_visitada:', err));
+        }
+
+        // 3) Actualizar UI inmediatamente (añadir clase y badge)
+        if (tr) {
+          tr.classList.add('visitada-oposicion');   // clase CSS que colorea toda la fila
+          // añadir badge si no existe
+          const tituloCell = tr.querySelector('td:nth-child(2)');
+          if (tituloCell && !tituloCell.querySelector('.badge-visitada')) {
+            const span = document.createElement('span');
+            span.className = 'badge-visitada ms-2';
+            span.textContent = '🔵 Visitada';
+            tituloCell.appendChild(span);
           }
-        })
-        .catch(err => console.error('Fetch error:', err));
+        }
+
+        // 4) Abrir PDF en nueva pestaña (no bloqueante)
+        // Abrimos la url inmediatamente para una UX fluida
+        try {
+          window.open(pdfUrl, '_blank');
+        } catch (err) {
+          // fallback: navegación en la misma pestaña
+          window.location.href = pdfUrl;
+        }
       });
     });
   });
