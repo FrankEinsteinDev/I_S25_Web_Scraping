@@ -313,7 +313,7 @@ def mostrar_departamento(nombre):
     db = get_db()
     hoy = datetime.today().strftime("%Y%m%d")
 
-    user = current_user()
+    user = current_user
     user_id = user["id"] if user else None
 
     busqueda = request.args.get("busqueda", "")
@@ -348,7 +348,7 @@ def mostrar_departamento(nombre):
 
     # 🔵 Obtener las oposiciones visitadas por el usuario actual
     visitadas = []
-    user = current_user()
+    user = current_user
     if user:
         db.execute("""
             CREATE TABLE IF NOT EXISTS visitas (
