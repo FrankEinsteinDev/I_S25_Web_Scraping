@@ -2,6 +2,7 @@
 Aplicación Flask para Web Scraping del BOE (Boletín Oficial del Estado)
 con sistema de usuarios (sign up / login) y notificación por email de
 nuevas oposiciones detectadas.
+prueba de la guia
 """
 
 from datetime import datetime, date
