@@ -25,7 +25,10 @@ Define la estructura general de la aplicación:
 
   <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm mi-navbar animated-navbar">
     <div class="container">
-      <a class="navbar-brand fs-4" href="{{ url_for('index') }}">📜 Oposiciones BOE</a>
+      <a class="navbar-brand fs-4 d-flex align-items-center gap-2" href="{{ url_for('index') }}">
+        <img src="{{ url_for('static', filename='img/nav-bar-logo.png') }}" alt="Oposiciones BOE" width="50" height="50" style="object-fit: contain;">
+        Oposiciones BOE
+      </a>
 
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent"
               aria-controls="navbarContent" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,29 +40,29 @@ Define la estructura general de la aplicación:
           {% if user.is_authenticated %}
           <li class="nav-item dropdown me-2">
             <a class="nav-link dropdown-toggle text-white px-2" href="#" id="userMenuDropdown" role="button"
-               data-bs-toggle="dropdown" aria-expanded="false">
-              👤 Mi panel
+              data-bs-toggle="dropdown" aria-expanded="false">
+              🏠 Mi panel
             </a>
             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenuDropdown">
               <li>
                 <a class="dropdown-item" href="{{ url_for('oposiciones_vigentes') }}">
-                  Oposiciones vigentes
+                  📚 Oposiciones vigentes
                 </a>
               </li>
               <li>
                 <a class="dropdown-item" href="{{ url_for('oposiciones_favoritas') }}">
-                  Mis Favoritas ⭐
+                ⭐ Mis Favoritas 
                 </a>
               </li>
               <li>
                 <a class="dropdown-item" href="{{ url_for('newsletter_prefs') }}">
-                  Alertas por correo
+                🔔 Alertas por correo
                 </a>
               </li>
               <li><hr class="dropdown-divider"></li>
               <li>
                 <a class="dropdown-item" href="{{ url_for('configuracion_cuenta') }}">
-                  Configuración
+                  ⚙️ Configuración
                 </a>
               </li>
             </ul>
@@ -67,7 +70,7 @@ Define la estructura general de la aplicación:
 
           <li class="nav-item me-2">
             <a href="{{ url_for('logout') }}" class="btn btn-sm btn-danger">
-              Salir
+              🔓 Salir
             </a>
           </li>
           {% else %}
@@ -85,7 +88,7 @@ Define la estructura general de la aplicación:
 
           <li class="nav-item">
             <a href="{{ url_for('toggle_theme') }}" class="btn btn-outline-light btn-sm">
-              {% if theme == 'dark' %}☀️ Modo claro{% else %}🌙 Modo oscuro{% endif %}
+              {% if theme == 'dark' %}🔆{% else %}🌓{% endif %}
             </a>
           </li>
         </ul>
