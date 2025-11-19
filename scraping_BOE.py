@@ -616,6 +616,7 @@ def user():
 @login_required
 def oposiciones_vigentes():
     db = get_db()
+    user = current_user
     desde = (datetime.today() - timedelta(days=30)).strftime("%Y%m%d")
 
     departamentos = db.execute('''
@@ -678,6 +679,22 @@ def oposiciones_vigentes():
         "WHERE provincia IS NOT NULL ORDER BY provincia"
     ).fetchall()
 
+    # Obtener Visitadas y Favoritas para pintar los iconos
+    visitadas = [
+        row["oposicion_id"]
+        for row in db.execute(
+            "SELECT oposicion_id FROM visitas WHERE user_id = ?",
+            (user.id,)
+        ).fetchall()
+    ]
+    favoritas = [
+        row["oposicion_id"]
+        for row in db.execute(
+            "SELECT oposicion_id FROM favoritas WHERE user_id = ?",
+            (user.id,)
+        ).fetchall()
+    ]
+
     return render_template(
         "user_oposiciones.html",
         user=current_user,
@@ -689,10 +706,16 @@ def oposiciones_vigentes():
         provincia_filtro=provincia,
         fecha_desde=fecha_desde,
         fecha_hasta=fecha_hasta,
+<<<<<<< HEAD
         orden=orden,
         page=page,
         total_pages=total_pages,
         total=total,
+=======
+        visitadas=visitadas, 
+        favoritas=favoritas, 
+        hoy=datetime.today().strftime("%Y%m%d")
+>>>>>>> Demo
     )
 
 
@@ -715,30 +738,6 @@ def marcar_visitada(oposicion_id):
     registrar_visita(user_id, oposicion_id)
     print(f"🟢 Registro de visita recibido: user={user_id}, oposicion_id={oposicion_id}")
     return jsonify({"ok": True})
-
-
-@app.route("/estadisticas")
-@login_required
-def estadisticas():
-    db = get_db()
-    stats = db.execute("""
-        SELECT o.departamento, COUNT(v.id) AS total_visitas
-        FROM visitas v
-        JOIN oposiciones o ON v.oposicion_id = o.id
-        GROUP BY o.departamento
-        ORDER BY total_visitas DESC
-    """).fetchall()
-
-    labels = [row["departamento"] for row in stats]
-    values = [row["total_visitas"] for row in stats]
-
-    return render_template(
-        "estadisticas.html",
-        stats=stats,
-        labels=labels,
-        values=values,
-        user=current_user
-    )
 
 
 @app.route("/toggle_favorito/<int:oposicion_id>", methods=["POST"])
