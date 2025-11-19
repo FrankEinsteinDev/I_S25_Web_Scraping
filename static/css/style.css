@@ -566,7 +566,7 @@ h2.titulo-registro + form .btn-success:hover {
     box-shadow: 0 6px 16px rgba(0,0,0,.2);
 }
 
-/* Responsive */
+/* Responsive  Titulo registro*/
 @media (max-width: 768px) {
     h2.titulo-registro + form { padding: 1.5rem; margin: 1.5rem auto; }
     h2.titulo-registro { font-size: 1.5rem; }
@@ -940,4 +940,30 @@ html[data-theme="dark"] .visitada-oposicion {
   background-color: #0b1120 !important;
   color: #e5e7eb !important;
   box-shadow: 0 0 8px rgba(37, 99, 235, 0.4);
+}
+
+/* ---------------- MODO OSCURO PARA FORMULARIO DE REGISTRO ---------------- */
+html[data-theme="dark"] form.form-register,
+html[data-theme="dark"] form.form-register input,
+html[data-theme="dark"] form.form-register select,
+html[data-theme="dark"] form.form-register textarea,
+html[data-theme="dark"] form.form-register button {
+  background-color: #161b22 !important;  /* fondo oscuro para el form y inputs */
+  color: #e5e7eb !important;            /* texto claro */
+  border: 1px solid #374151 !important; /* borde gris oscuro */
+}
+
+html[data-theme="dark"] form.form-register input::placeholder,
+html[data-theme="dark"] form.form-register select::placeholder {
+  color: #6b7280 !important;            /* placeholder más claro */
+}
+
+html[data-theme="dark"] form.form-register button.btn-success {
+  background-color: #2ea043 !important; /* botón verde más brillante */
+  color: #e5e7eb !important;
+}
+
+html[data-theme="dark"] form.form-register button.btn-success:hover {
+  background-color: #157347 !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
 }
