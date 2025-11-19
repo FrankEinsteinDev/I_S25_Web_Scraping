@@ -95,38 +95,38 @@ Incluye botón de retorno a la página principal y paginación.
                 {% if row['fecha'] == hoy %}nueva-oposicion{% endif %}
                 {% if row['id'] in visitadas %} visitada-oposicion{% endif %}
             ">
-              <td class="col-id">{{ row['identificador'] }}</td>
-              <td class="col-titulo">
-                {% if user.is_authenticated %}
-                <span style="float: right; margin-left: 10px;">
-                    <button type="button" 
-                            class="toggle-favorito-btn" 
-                            data-oposicion-id="{{ row.id }}" 
-                            aria-label="Marcar como favorito"
-                            style="border: none; background: none; cursor: pointer; color: orange;">
-                        <i class="bi {% if row.id in favoritas %}bi-star-fill{% else %}bi-star{% endif %}"
-                           title="{% if row.id in favoritas %}Quitar de Favoritos{% else %}Marcar como Favorito{% endif %}"
-                           >
-                        </i>
-                    </button>
-                </span>
-                {% endif %}
-                
-                <a href="{{ row['url_html'] }}" target="_blank" 
-                   class="titulo-oposicion" 
-                   data-id="{{ row['id'] }}"
-                   style="text-decoration: none; color: inherit; cursor: pointer;">
-                  {{ row['titulo'] }}
-                </a>
-                
-                {% if row['fecha'] == hoy %}
-                  <span class="badge-nuevo">🟡 Nuevo</span> 
-                {% endif %}
-                {% if row['id'] in visitadas %}
-                  <span class="badge-visitada">🔵 Visitada</span>
-               {% endif %}
+              <td>{{ row['identificador'] }}</td>
+              
+              <td>
+                <div class="d-flex justify-content-between align-items-start">
+                    <span>{{ row['titulo'] }}</span>
+                    
+                    {% if user.is_authenticated %}
+                    <span style="margin-left: 10px;">
+                        <button type="button" 
+                                class="toggle-favorito-btn" 
+                                data-oposicion-id="{{ row.id }}" 
+                                aria-label="Marcar como favorito"
+                                style="border: none; background: none; cursor: pointer; color: orange;">
+                            <i class="bi {% if row.id in favoritas %}bi-star-fill{% else %}bi-star{% endif %}"
+                               title="{% if row.id in favoritas %}Quitar de Favoritos{% else %}Marcar como Favorito{% endif %}">
+                            </i>
+                        </button>
+                    </span>
+                    {% endif %}
+                </div>
+
+                <div class="mt-2 d-flex flex-column align-items-start gap-1">
+                  {% if row['fecha'] == hoy %}
+                    <span class="badge-nuevo">🟡 Nuevo</span>
+                  {% endif %}
+                  {% if row['id'] in visitadas %}
+                    <span class="badge-visitada">🔵 Visitada</span>
+                  {% endif %}
+                </div>
               </td>
-              <td class="col-control">{{ row['control'] }}</td>
+
+              <td>{{ row['control'] }}</td>
               <td>
                 {% if row['url_pdf'] %}
                   <a href="{{ row['url_pdf'] }}" target="_blank" 
@@ -136,7 +136,7 @@ Incluye botón de retorno a la página principal y paginación.
                   </a>
                 {% endif %}
               </td>
-              <td class="col-fecha">{{ row['fecha']|format_date }}</td>
+              <td>{{ row['fecha']|format_date }}</td>
             </tr>
           {% else %}
             <tr>
@@ -210,7 +210,6 @@ Incluye botón de retorno a la página principal y paginación.
             .then(response => response.json())
             .then(data => {
                 if (data.ok) {
-                    // Actualizar el estado del icono a Bootstrap Icons
                     if (data.is_favorite) {
                         icon.classList.remove('bi-star');
                         icon.classList.add('bi-star-fill'); 
@@ -231,10 +230,17 @@ Incluye botón de retorno a la página principal y paginación.
         });
     });
     
-    // --- Función auxiliar para marcar como visitada ---
-    function marcarComoVisitada(id, tr) {
-      const beaconUrl = `/marcar_visitada/${id}`;
-      let beaconSent = false;
+    // --- Lógica del botón PDF (Marcar como visitada) ---
+    document.querySelectorAll('.btn-pdf').forEach(btn => {
+      btn.addEventListener('click', function (e) {
+        e.preventDefault(); // evitamos la navegación automática
+
+        const id = this.dataset.id;
+        const pdfUrl = this.getAttribute('href');
+        const tr = this.closest('tr');
+
+        const beaconUrl = `/marcar_visitada/${id}`;
+        let beaconSent = false;
 
       // 1) Intentamos usar sendBeacon
       try {
@@ -248,29 +254,30 @@ Incluye botón de retorno a la página principal y paginación.
         beaconSent = false;
       }
 
-      // 2) Si sendBeacon no está disponible, hacemos fetch en background
-      if (!beaconSent) {
-        fetch(beaconUrl, {
-          method: 'POST',
-          headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/json' },
-          body: JSON.stringify({ts: new Date().toISOString()})
-        }).then(resp => {
-          if (!resp.ok) console.warn('marcar_visitada respondió', resp.status);
-        }).catch(err => console.warn('Error fetch marcar_visitada:', err));
-      }
-
-      // 3) Actualizar UI inmediatamente (añadir clase y badge)
-      if (tr) {
-        tr.classList.add('visitada-oposicion');
-        const tituloCell = tr.querySelector('td:nth-child(2)');
-        if (tituloCell && !tituloCell.querySelector('.badge-visitada')) {
-          const span = document.createElement('span');
-          span.className = 'badge-visitada ms-2';
-          span.textContent = '🔵 Visitada';
-          tituloCell.appendChild(span);
+        if (!beaconSent) {
+          fetch(beaconUrl, {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/json' },
+            body: JSON.stringify({ts: new Date().toISOString()})
+          }).then(resp => {
+            if (!resp.ok) console.warn('marcar_visitada respondió', resp.status);
+          }).catch(err => console.warn('Error fetch marcar_visitada:', err));
         }
-      }
-    }
+
+        // Actualizar UI inmediatamente (añadir clase y badge)
+        if (tr) {
+          tr.classList.add('visitada-oposicion');
+          
+          // Buscamos el div donde están los badges (el que tiene flex-column)
+          const badgesDiv = tr.querySelector('td:nth-child(2) .d-flex.flex-column');
+
+          if (badgesDiv && !badgesDiv.querySelector('.badge-visitada')) {
+            const span = document.createElement('span');
+            span.className = 'badge-visitada'; // Usamos tu clase CSS original
+            span.textContent = '🔵 Visitada';
+            badgesDiv.appendChild(span);
+          }
+        }
 
     // --- Lógica del enlace del título (Marcar como visitada al hacer clic) ---
     document.querySelectorAll('.titulo-oposicion').forEach(link => {
