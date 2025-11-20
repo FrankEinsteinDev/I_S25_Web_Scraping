@@ -1,5 +1,4 @@
 
-¡HOY ME SIENTO FURBY! ![Image](https://github.com/user-attachments/assets/211bdce8-d6d3-4202-a201-48e30eecf53c)
 
 # 📚 BOE Oposiciones – Web Scraping y Portal de Usuarios
 
