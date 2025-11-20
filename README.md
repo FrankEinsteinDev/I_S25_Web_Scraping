@@ -1,6 +1,5 @@
 
-¡HOY ME SIENTO FURBY! ![Image](https://github.com/user-attachments/assets/211bdce8-d6d3-4202-a201-48e30eecf53c) ![Image](https://github.com/user-attachments/assets/8fe8d625-f8e8-4800-bb2a-3b6947d0e5d9)
-
+¡HOY ME SIENTO FURBY! ![Image](https://github.com/user-attachments/assets/211bdce8-d6d3-4202-a201-48e30eecf53c)
 # 📚 BOE Oposiciones – Web Scraping y Portal de Usuarios
 
 [![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/)
