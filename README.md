@@ -1,5 +1,4 @@
 
- ![Image](https://github.com/user-attachments/assets/211bdce8-d6d3-4202-a201-48e30eecf53c) 
  
 
 [![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/)
