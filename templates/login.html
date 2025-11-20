@@ -8,8 +8,16 @@
   </div>
   <div class="mb-3">
     <label class="form-label">Contraseña</label>
-    <input class="form-control" type="password" name="password" required>
+    <div class="input-group">
+      <input class="form-control" type="password" name="password" id="password-login" required>
+      <button class="btn btn-outline-secondary" type="button" id="togglePassword-login"
+        onclick="togglePasswordVisibility('login')">
+        <i class="bi bi-eye" id="eye-icon-login"></i>
+      </button>
+    </div>
   </div>
   <button class="btn btn-primary">Entrar</button>
 </form>
+
+
 {% endblock %}

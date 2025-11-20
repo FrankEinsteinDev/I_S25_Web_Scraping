@@ -31,6 +31,7 @@ login_manager.login_view = "login"
 
 # ============ TEMA CLARO / OSCURO ============
 
+
 @app.before_request
 def ensure_theme():
     """Si no hay tema en la sesión, se establece 'light' por defecto."""
@@ -42,6 +43,16 @@ def ensure_theme():
 def inject_theme():
     """Hace disponible la variable 'theme' en todas las plantillas."""
     return {'theme': session.get('theme', 'light')}
+
+
+@app.context_processor
+def inject_user():
+    """Hace disponible la variable 'user' (current_user) en todas las plantillas.
+
+    Así los templates pueden usar `user` en vez de `current_user` y no hace falta
+    pasarlo explícitamente en cada `render_template`.
+    """
+    return {'user': current_user}
 
 
 @app.route('/toggle_theme')
@@ -87,16 +98,15 @@ def load_user(user_id):
     return User.get(user_id)
 
 
-# === Configuración de Flask-Mail (desde variables de entorno) ===
-app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER', 'localhost')
-app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT', '25'))
-app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS', '0') == '1'
-app.config['MAIL_USE_SSL'] = os.getenv('MAIL_USE_SSL', '0') == '1'
-app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
-app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
-app.config['MAIL_DEFAULT_SENDER'] = os.getenv(
-    'MAIL_DEFAULT_SENDER', app.config.get('MAIL_USERNAME')
-)
+# === Configuración de Flask-Mail (GMAIL) ===
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USE_SSL'] = False
+app.config['MAIL_USERNAME'] = 'notificaciones.scraper@gmail.com'  
+app.config['MAIL_PASSWORD'] = 'sqoj zfue ovcf dlhz'     
+app.config['MAIL_DEFAULT_SENDER'] = 'notificaciones.scraper@gmail.com' 
+# ============================================
 
 mail = Mail(app)
 
@@ -191,6 +201,16 @@ def init_db():
             UNIQUE(user_id, oposicion_id),
             FOREIGN KEY (user_id) REFERENCES users(id),
             FOREIGN KEY (oposicion_id) REFERENCES oposiciones(id)
+        )
+    """)
+    # Suscripciones de usuario
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS suscripciones (
+            user_id INTEGER PRIMARY KEY,
+            alerta_diaria INTEGER DEFAULT 0,
+            alerta_favoritos INTEGER DEFAULT 0,
+            departamento_filtro TEXT,
+            FOREIGN KEY (user_id) REFERENCES users(id)
         )
     """)
     db.commit()
@@ -429,6 +449,10 @@ def toggle_favorito(user_id, oposicion_id):
 @app.route('/')
 def index():
     init_db()
+    try:
+        scrape_boe()
+    except Exception as e:
+        app.logger.warning(f"Error al actualizar datos automáticamente: {e}")
     db = get_db()
     hoy = datetime.today().strftime('%Y%m%d')
     deps = db.execute(
@@ -440,7 +464,7 @@ def index():
         ''',
         (hoy,)
     ).fetchall()
-    return render_template('index.html', departamentos=deps, user=current_user)
+    return render_template('index.html', departamentos=deps)
 
 
 @app.route("/departamento/<nombre>")
@@ -454,6 +478,7 @@ def mostrar_departamento(nombre):
     provincia = request.args.get("provincia", "")
     fecha_desde = request.args.get("fecha_desde", "")
     fecha_hasta = request.args.get("fecha_hasta", "")
+    orden = request.args.get("orden", "desc")
     page = int(request.args.get("page", 1))
     por_pagina = 10
     offset = (page - 1) * por_pagina
@@ -474,7 +499,8 @@ def mostrar_departamento(nombre):
         sql += " AND fecha <= ?"
         params.append(fecha_hasta.replace("-", ""))
 
-    sql += " ORDER BY fecha DESC LIMIT ? OFFSET ?"
+    order_direction = "DESC" if orden == "desc" else "ASC"
+    sql += f" ORDER BY fecha {order_direction} LIMIT ? OFFSET ?"
     params += [por_pagina, offset]
 
     rows = db.execute(sql, params).fetchall()
@@ -518,12 +544,12 @@ def mostrar_departamento(nombre):
         provincias=provincias,
         busqueda=busqueda,
         provincia_filtro=provincia,
+        orden=orden,
         fecha_desde=fecha_desde,
         fecha_hasta=fecha_hasta,
         hoy=hoy,
         visitadas=visitadas,
         favoritas=favoritas,
-        user=user,
     )
 
 
@@ -561,7 +587,7 @@ def login():
         flash("Sesión iniciada.", "success")
         next_url = request.args.get('next') or url_for('index')
         return redirect(next_url)
-    return render_template('login.html', user=current_user)
+    return render_template('login.html')
 
 
 @app.route('/logout')
@@ -584,7 +610,7 @@ def register():
         genero = (request.form.get('genero') or '')
         if not all([email, password, name, apellidos, age, genero]):
             flash("¡Rellena todos los campos!", "danger")
-            return render_template('register.html', user=current_user)
+            return render_template('register.html')
         if find_user_by_email(email):
             flash("Ese email ya está registrado.", "warning")
             return render_template('register.html', user=current_user)
@@ -600,21 +626,76 @@ def register():
         ))
         flash("Registro correcto. Sesión iniciada.", "success")
         return redirect(url_for('index'))
-    return render_template('register.html', user=current_user)
+    return render_template('register.html')
 
 
 @app.route("/user", methods=["GET", "POST"])
 @login_required
 def user():
-    return render_template("user.html", user=current_user)
+    return render_template("user.html")
 
 
 @app.route("/user_oposiciones")
 @login_required
 def oposiciones_vigentes():
     db = get_db()
+    user = current_user
     desde = (datetime.today() - timedelta(days=30)).strftime("%Y%m%d")
 
+    # 1. Recoger parámetros de paginación y filtros
+    page = int(request.args.get("page", 1))
+    por_pagina = 10
+    offset = (page - 1) * por_pagina
+
+    selected_departamentos = request.args.getlist("departamentos")
+    busqueda = request.args.get("busqueda", "")
+    provincia = request.args.get("provincia", "")
+    fecha_desde = request.args.get("fecha_desde", "")
+    fecha_hasta = request.args.get("fecha_hasta", "")
+    orden = request.args.get("orden", "desc")
+    page = int(request.args.get("page", 1))
+    por_pagina = 20
+
+    # 2. Construir la consulta base (sin SELECT ni ORDER BY aún)
+    # Esto nos permite reutilizar los filtros para contar el total y para sacar los datos
+    sql_part = "FROM oposiciones WHERE fecha >= ?"
+    params = [desde]
+
+    if selected_departamentos:
+        sql_part += " AND departamento IN ({})".format(
+            ",".join(["?"] * len(selected_departamentos))
+        )
+        params.extend(selected_departamentos)
+
+    if busqueda:
+        like = f"%{busqueda}%"
+        sql_part += " AND (titulo LIKE ? OR identificador LIKE ? OR control LIKE ?)"
+        params += [like, like, like]
+
+    if provincia:
+        sql_part += " AND provincia = ?"
+        params.append(provincia)
+
+    if fecha_desde:
+        sql_part += " AND fecha >= ?"
+        params.append(fecha_desde.replace("-", ""))
+
+    if fecha_hasta:
+        sql_part += " AND fecha <= ?"
+        params.append(fecha_hasta.replace("-", ""))
+
+    # 3. Calcular Total de Registros (para la paginación)
+    total_query = f"SELECT COUNT(*) {sql_part}"
+    total = db.execute(total_query, params).fetchone()[0]
+    total_pages = (total + por_pagina - 1) // por_pagina
+
+    # 4. Obtener los datos de la página actual
+    data_query = f"SELECT * {sql_part} ORDER BY fecha DESC LIMIT ? OFFSET ?"
+    # Hacemos una copia de params para no ensuciar la lista original si la necesitáramos luego
+    data_params = params + [por_pagina, offset]
+    oposiciones = db.execute(data_query, data_params).fetchall()
+
+    # --- Datos adicionales para la vista ---
     departamentos = db.execute('''
         SELECT DISTINCT departamento 
         FROM oposiciones 
@@ -622,50 +703,30 @@ def oposiciones_vigentes():
         ORDER BY departamento
     ''', (desde,)).fetchall()
 
-    selected_departamentos = request.args.getlist("departamentos")
-    busqueda = request.args.get("busqueda", "")
-    provincia = request.args.get("provincia", "")
-    fecha_desde = request.args.get("fecha_desde", "")
-    fecha_hasta = request.args.get("fecha_hasta", "")
-
-    sql = "SELECT * FROM oposiciones WHERE fecha >= ?"
-    params = [desde]
-
-    if selected_departamentos:
-        sql += " AND departamento IN ({})".format(
-            ",".join(["?"] * len(selected_departamentos))
-        )
-        params.extend(selected_departamentos)
-
-    if busqueda:
-        like = f"%{busqueda}%"
-        sql += " AND (titulo LIKE ? OR identificador LIKE ? OR control LIKE ?)"
-        params += [like, like, like]
-
-    if provincia:
-        sql += " AND provincia = ?"
-        params.append(provincia)
-
-    if fecha_desde:
-        sql += " AND fecha >= ?"
-        params.append(fecha_desde.replace("-", ""))
-
-    if fecha_hasta:
-        sql += " AND fecha <= ?"
-        params.append(fecha_hasta.replace("-", ""))
-
-    sql += " ORDER BY fecha DESC"
-    oposiciones = db.execute(sql, params).fetchall()
-
     provincias = db.execute(
         "SELECT DISTINCT provincia FROM oposiciones "
         "WHERE provincia IS NOT NULL ORDER BY provincia"
     ).fetchall()
 
+    visitadas = [
+        row["oposicion_id"]
+        for row in db.execute(
+            "SELECT oposicion_id FROM visitas WHERE user_id = ?",
+            (user.id,)
+        ).fetchall()
+    ]
+    favoritas = [
+        row["oposicion_id"]
+        for row in db.execute(
+            "SELECT oposicion_id FROM favoritas WHERE user_id = ?",
+            (user.id,)
+        ).fetchall()
+    ]
+
     return render_template(
         "user_oposiciones.html",
-        user=current_user,
         departamentos=departamentos,
+        # Pasamos los filtros seleccionados para mantenerlos en la paginación
         selected_departamentos=selected_departamentos,
         oposiciones=oposiciones,
         provincias=provincias,
@@ -673,19 +734,60 @@ def oposiciones_vigentes():
         provincia_filtro=provincia,
         fecha_desde=fecha_desde,
         fecha_hasta=fecha_hasta,
+        # Variables de paginación
+        page=page,
+        total_pages=total_pages,
+        visitadas=visitadas,
+        favoritas=favoritas,
+        hoy=datetime.today().strftime("%Y%m%d")
     )
 
 
-@app.route("/user_alertas")
+@app.route("/user_alertas", methods=["GET", "POST"])
 @login_required
 def newsletter_prefs():
-    return render_template("user_newsletter.html", user=current_user)
+    db = get_db()
+    user_id = current_user.id
+
+    # 1. Procesar el formulario al guardar (POST)
+    if request.method == "POST":
+        # Los checkbox solo envían valor si están marcados ("on")
+        alerta_diaria = 1 if request.form.get("alerta_diaria") else 0
+        alerta_favoritos = 1 if request.form.get("alerta_favoritos") else 0
+        departamento = request.form.get("departamento_filtro")
+
+        # Usamos REPLACE INTO para insertar o actualizar si ya existe (gracias a la PK user_id)
+        db.execute("""
+            INSERT OR REPLACE INTO suscripciones (user_id, alerta_diaria, alerta_favoritos, departamento_filtro)
+            VALUES (?, ?, ?, ?)
+        """, (user_id, alerta_diaria, alerta_favoritos, departamento))
+        db.commit()
+        flash("¡Preferencias de alertas actualizadas!", "success")
+        return redirect(url_for("newsletter_prefs"))
+
+    # 2. Cargar preferencias actuales (GET)
+    prefs = db.execute("SELECT * FROM suscripciones WHERE user_id = ?", (user_id,)).fetchone()
+
+    # Si no tiene preferencias guardadas, creamos un diccionario por defecto
+    if not prefs:
+        prefs = {"alerta_diaria": 0, "alerta_favoritos": 0, "departamento_filtro": "Todos"}
+
+    # 3. Cargar lista de departamentos para el select
+    dept_rows = db.execute("SELECT DISTINCT departamento FROM oposiciones WHERE departamento IS NOT NULL ORDER BY departamento").fetchall()
+    departamentos = [d["departamento"] for d in dept_rows]
+
+    return render_template(
+        "user_newsletter.html", 
+        user=current_user,
+        prefs=prefs,
+        departamentos=departamentos
+    )
 
 
 @app.route("/user_configuracion")
 @login_required
 def configuracion_cuenta():
-    return render_template("user_configuracion.html", user=current_user)
+    return render_template("user_configuracion.html")
 
 
 @app.route("/marcar_visitada/<int:oposicion_id>", methods=["POST"])
@@ -693,7 +795,8 @@ def configuracion_cuenta():
 def marcar_visitada(oposicion_id):
     user_id = current_user.id
     registrar_visita(user_id, oposicion_id)
-    print(f"🟢 Registro de visita recibido: user={user_id}, oposicion_id={oposicion_id}")
+    print(
+        f"🟢 Registro de visita recibido: user={user_id}, oposicion_id={oposicion_id}")
     return jsonify({"ok": True})
 
 
@@ -717,7 +820,6 @@ def estadisticas():
         stats=stats,
         labels=labels,
         values=values,
-        user=current_user
     )
 
 
@@ -753,7 +855,6 @@ def oposiciones_favoritas():
 
     return render_template(
         "user_oposiciones.html",
-        user=user,
         oposiciones=oposiciones,
         departamentos=[],
         selected_departamentos=[],
@@ -764,8 +865,104 @@ def oposiciones_favoritas():
         fecha_hasta="",
         visitadas=visitadas,
         favoritas=[o['id'] for o in oposiciones],
+        hoy=datetime.now().strftime('%Y-%m-%d'),
+        total=len(oposiciones),
+        page=1,
+        total_pages=1,
+        orden="desc"
     )
 
+
+# 🆕 Ruta para cambiar la contraseña
+@app.route("/change_password", methods=["POST"])
+@login_required
+def change_password():
+    db = get_db()
+    user_id = current_user.id
+
+    current_password = request.form.get("current_password")
+    new_password = request.form.get("new_password")
+    confirm_password = request.form.get("confirm_password")
+
+    # Validaciones básicas
+    if not current_password or not new_password or not confirm_password:
+        flash("Por favor, rellena todos los campos.", "danger")
+        return redirect(url_for("configuracion_cuenta"))
+
+    if new_password != confirm_password:
+        flash("Las nuevas contraseñas no coinciden.", "danger")
+        return redirect(url_for("configuracion_cuenta"))
+
+    # Obtener el hash actual de la base de datos para verificar
+    row = db.execute(
+        "SELECT password_hash FROM users WHERE id = ?", (user_id,)).fetchone()
+    if not row:
+        flash("Usuario no encontrado.", "danger")
+        return redirect(url_for("index"))
+
+    stored_hash = row["password_hash"]
+
+    # Verificar que la contraseña actual sea correcta
+    if not check_password_hash(stored_hash, current_password):
+        flash("La contraseña actual es incorrecta.", "danger")
+        return redirect(url_for("configuracion_cuenta"))
+
+    # Generar nuevo hash y actualizar en DB
+    new_hash = generate_password_hash(new_password)
+    db.execute("UPDATE users SET password_hash = ? WHERE id = ?",
+               (new_hash, user_id))
+    db.commit()
+
+    flash("¡Contraseña actualizada correctamente!", "success")
+    return redirect(url_for("configuracion_cuenta"))
+
+
+# 🆕 Ruta para forzar el envío de un email resumen ahora mismo (CORREGIDA)
+@app.route("/enviar_resumen_ahora", methods=["POST"])
+@login_required
+def enviar_resumen_ahora():
+    db = get_db()
+    user = current_user
+
+    # 1. Obtener preferencias guardadas del usuario
+    prefs = db.execute("SELECT * FROM suscripciones WHERE user_id = ?", (user.id,)).fetchone()
+    
+    # Si no ha guardado nada, asumimos "Todos"
+    # Nota: sqlite3.Row permite acceso por índice prefs['columna'] pero no .get()
+    dept_filter = prefs["departamento_filtro"] if prefs and prefs["departamento_filtro"] else "Todos"
+
+    # 2. Buscar oposiciones recientes (últimos 7 días para asegurar que haya contenido)
+    fecha_limite = (datetime.now() - timedelta(days=7)).strftime("%Y%m%d")
+    
+    sql = "SELECT * FROM oposiciones WHERE fecha >= ?"
+    params = [fecha_limite]
+
+    # Aplicar filtro si el usuario tiene un departamento seleccionado
+    if dept_filter != "Todos":
+        sql += " AND departamento = ?"
+        params.append(dept_filter)
+
+    sql += " ORDER BY fecha DESC LIMIT 20"
+    rows = db.execute(sql, params).fetchall() # Obtenemos filas SQL
+
+    # 🔴 PASO CLAVE: Convertir las filas SQL a diccionarios normales
+    # Esto es necesario porque send_new_oposiciones_email usa .get(), que las filas SQL no tienen.
+    oposiciones = [dict(row) for row in rows]
+
+    # 3. Enviar Email
+    if oposiciones:
+        try:
+            send_new_oposiciones_email([user.email], oposiciones)
+            flash(f"✅ Email enviado correctamente a {user.email} con {len(oposiciones)} oposiciones recientes.", "success")
+        except Exception as e:
+            # Imprimir el error completo en consola para depurar mejor
+            import traceback
+            traceback.print_exc()
+            flash(f"❌ Error al enviar email (revisa la configuración SMTP): {e}", "danger")
+    else:
+        flash(f"⚠️ No se encontraron oposiciones recientes (últimos 7 días) para el departamento: {dept_filter}", "warning")
+
+    return redirect(url_for("newsletter_prefs"))
 
 if __name__ == '__main__':
     with app.app_context():
