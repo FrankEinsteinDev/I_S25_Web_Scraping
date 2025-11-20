@@ -25,10 +25,6 @@ DB_PATH = os.getenv('DB_PATH', 'oposiciones.db')
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'cambia-esto-en-produccion')
 
-# Crear directorio para fotos de perfil
-UPLOAD_FOLDER = os.path.join('static', 'uploads', 'profiles')
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = "login"
@@ -70,49 +66,29 @@ def inject_user():
 
 
 class User(UserMixin):
-    def __init__(self, id, email, name, apellidos, age, genero, telefono=None, foto_perfil=None,
-                 dni=None, fecha_nacimiento=None, nacionalidad=None, direccion=None, codigo_postal=None,
-                 ciudad=None, provincia=None, nivel_estudios=None, titulacion=None, situacion_laboral=None,
-                 idiomas=None, discapacidad=None, porcentaje_discapacidad=None):
+    def __init__(self, id, email, name, apellidos, age, genero):
         self.id = id
         self.email = email
         self.name = name
         self.apellidos = apellidos
         self.age = age
         self.genero = genero
-        self.telefono = telefono
-        self.foto_perfil = foto_perfil
-        self.dni = dni
-        self.fecha_nacimiento = fecha_nacimiento
-        self.nacionalidad = nacionalidad
-        self.direccion = direccion
-        self.codigo_postal = codigo_postal
-        self.ciudad = ciudad
-        self.provincia = provincia
-        self.nivel_estudios = nivel_estudios
-        self.titulacion = titulacion
-        self.situacion_laboral = situacion_laboral
-        self.idiomas = idiomas
-        self.discapacidad = discapacidad
-        self.porcentaje_discapacidad = porcentaje_discapacidad
 
     @staticmethod
     def get(user_id):
         db = get_db()
         row = db.execute(
-            """SELECT id, email, name, apellidos, age, genero, telefono, foto_perfil,
-               dni, fecha_nacimiento, nacionalidad, direccion, codigo_postal, ciudad, provincia,
-               nivel_estudios, titulacion, situacion_laboral, idiomas, discapacidad, porcentaje_discapacidad
-               FROM users WHERE id = ?""",
+            "SELECT id, email, name, apellidos, age, genero FROM users WHERE id = ?",
             (user_id,)
         ).fetchone()
         if row:
             return User(
-                row["id"], row["email"], row["name"], row["apellidos"], row["age"], row["genero"],
-                row["telefono"], row["foto_perfil"], row["dni"], row["fecha_nacimiento"],
-                row["nacionalidad"], row["direccion"], row["codigo_postal"], row["ciudad"],
-                row["provincia"], row["nivel_estudios"], row["titulacion"], row["situacion_laboral"],
-                row["idiomas"], row["discapacidad"], row["porcentaje_discapacidad"]
+                row["id"],
+                row["email"],
+                row["name"],
+                row["apellidos"],
+                row["age"],
+                row["genero"],
             )
         return None
 
@@ -204,22 +180,7 @@ def init_db():
             name TEXT,
             apellidos TEXT,
             age INTEGER,
-            genero TEXT,
-            telefono TEXT,
-            foto_perfil TEXT,
-            dni TEXT,
-            fecha_nacimiento TEXT,
-            nacionalidad TEXT,
-            direccion TEXT,
-            codigo_postal TEXT,
-            ciudad TEXT,
-            provincia TEXT,
-            nivel_estudios TEXT,
-            titulacion TEXT,
-            situacion_laboral TEXT,
-            idiomas TEXT,
-            discapacidad INTEGER,
-            porcentaje_discapacidad INTEGER
+            genero TEXT
         )
     """)
     db.execute("""
@@ -255,60 +216,18 @@ def init_db():
     db.commit()
 
 
-def migrate_db():
-    """Migración para agregar campos de perfil profesional a usuarios existentes"""
-    db = get_db()
-    try:
-        # Verificar si las columnas ya existen
-        cursor = db.execute("PRAGMA table_info(users)")
-        columns = [row[1] for row in cursor.fetchall()]
-        
-        nuevas_columnas = [
-            ('telefono', 'TEXT'),
-            ('foto_perfil', 'TEXT'),
-            ('dni', 'TEXT'),
-            ('fecha_nacimiento', 'TEXT'),
-            ('nacionalidad', 'TEXT'),
-            ('direccion', 'TEXT'),
-            ('codigo_postal', 'TEXT'),
-            ('ciudad', 'TEXT'),
-            ('provincia', 'TEXT'),
-            ('nivel_estudios', 'TEXT'),
-            ('titulacion', 'TEXT'),
-            ('situacion_laboral', 'TEXT'),
-            ('idiomas', 'TEXT'),
-            ('discapacidad', 'INTEGER'),
-            ('porcentaje_discapacidad', 'INTEGER')
-        ]
-        
-        for columna, tipo in nuevas_columnas:
-            if columna not in columns:
-                db.execute(f"ALTER TABLE users ADD COLUMN {columna} {tipo}")
-                print(f"✅ Columna '{columna}' agregada a la tabla users")
-        
-        db.commit()
-        print("✅ Migración completada")
-    except Exception as e:
-        print(f"⚠️ Error en migración: {e}")
-
-
 # --------------------
 # Helpers Auth
 # --------------------
 
-def create_user(email, password, name, apellidos, age, genero, telefono=None, dni=None, 
-                fecha_nacimiento=None, nacionalidad=None, nivel_estudios=None, titulacion=None, 
-                situacion_laboral=None, discapacidad=0, porcentaje_discapacidad=0):
+def create_user(email, password, name, apellidos, age, genero):
     db = get_db()
     password_hash = generate_password_hash(password)
-    db.execute("""
-        INSERT INTO users (email, password_hash, name, apellidos, age, genero, telefono, dni,
-                          fecha_nacimiento, nacionalidad, nivel_estudios, titulacion, situacion_laboral,
-                          discapacidad, porcentaje_discapacidad) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (email.lower(), password_hash, name, apellidos, age, genero, telefono, dni,
-           fecha_nacimiento, nacionalidad, nivel_estudios, titulacion, situacion_laboral,
-           discapacidad, porcentaje_discapacidad))
+    db.execute(
+        "INSERT INTO users (email, password_hash, name, apellidos, age, genero) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        (email.lower(), password_hash, name, apellidos, age, genero)
+    )
     db.commit()
 
 
@@ -658,11 +577,12 @@ def login():
             flash("Credenciales inválidas.", "danger")
             return redirect(url_for('login'))
         login_user(User(
-            user["id"], user["email"], user["name"], user["apellidos"], user["age"], user["genero"],
-            user["telefono"], user["foto_perfil"], user["dni"], user["fecha_nacimiento"],
-            user["nacionalidad"], user["direccion"], user["codigo_postal"], user["ciudad"],
-            user["provincia"], user["nivel_estudios"], user["titulacion"], user["situacion_laboral"],
-            user["idiomas"], user["discapacidad"], user["porcentaje_discapacidad"]
+            user["id"],
+            user["email"],
+            user["name"],
+            user["apellidos"],
+            user["age"],
+            user["genero"],
         ))
         flash("Sesión iniciada.", "success")
         next_url = request.args.get('next') or url_for('index')
@@ -682,78 +602,27 @@ def logout():
 def register():
     init_db()
     if request.method == 'POST':
-        # Campos obligatorios básicos
         email = (request.form.get('email') or '').strip()
         password = (request.form.get('password') or '')
-        name = (request.form.get('nombre') or '').strip()
-        apellidos = (request.form.get('apellidos') or '').strip()
+        name = (request.form.get('nombre') or '')
+        apellidos = (request.form.get('apellidos') or '')
         age = (request.form.get('edad') or '')
-        genero = (request.form.get('genero') or '').strip()
-        
-        # Campos obligatorios profesionales
-        dni = (request.form.get('dni') or '').strip()
-        fecha_nacimiento = (request.form.get('fecha_nacimiento') or '').strip()
-        nacionalidad = (request.form.get('nacionalidad') or '').strip()
-        nivel_estudios = (request.form.get('nivel_estudios') or '').strip()
-        situacion_laboral = (request.form.get('situacion_laboral') or '').strip()
-        
-        # Campos opcionales
-        telefono = (request.form.get('telefono') or '').strip() or None
-        titulacion = (request.form.get('titulacion') or '').strip() or None
-        discapacidad = 1 if request.form.get('discapacidad') == 'si' else 0
-        porcentaje_discapacidad = int(request.form.get('porcentaje_discapacidad', 0) or 0)
-        
-        # Si seleccionó "Otro" en género
-        if genero == "Otro":
-            otro_genero = request.form.get("otro_genero", "").strip()
-            if otro_genero:
-                genero = otro_genero
-        
-        # Validar campos obligatorios
-        if not all([email, password, name, apellidos, age, genero, dni, fecha_nacimiento, nacionalidad, nivel_estudios, situacion_laboral]):
-            flash("¡Rellena todos los campos obligatorios!", "danger")
-            return render_template('register.html', user=current_user)
-        
+        genero = (request.form.get('genero') or '')
+        if not all([email, password, name, apellidos, age, genero]):
+            flash("¡Rellena todos los campos!", "danger")
+            return render_template('register.html')
         if find_user_by_email(email):
             flash("Ese email ya está registrado.", "warning")
             return render_template('register.html', user=current_user)
-        
-        # Crear usuario primero sin foto
-        create_user(email, password, name, apellidos, age, genero, telefono, dni, 
-                   fecha_nacimiento, nacionalidad, nivel_estudios, titulacion, 
-                   situacion_laboral, discapacidad, porcentaje_discapacidad)
-        
-        # Obtener el usuario recién creado
-        user = find_user_by_email(email)
-        
-        # Manejar la foto de perfil si se subió
-        foto_perfil = None
-        if 'foto_perfil' in request.files:
-            file = request.files['foto_perfil']
-            if file and file.filename:
-                allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
-                filename = file.filename.lower()
-                if '.' in filename and filename.rsplit('.', 1)[1] in allowed_extensions:
-                    from werkzeug.utils import secure_filename
-                    filename = secure_filename(f"user_{user['id']}_{int(datetime.now().timestamp())}.{filename.rsplit('.', 1)[1]}")
-                    filepath = os.path.join('static', 'uploads', 'profiles', filename)
-                    os.makedirs(os.path.dirname(filepath), exist_ok=True)
-                    file.save(filepath)
-                    foto_perfil = f"/static/uploads/profiles/{filename}"
-                    
-                    # Actualizar foto en la base de datos
-                    db = get_db()
-                    db.execute("UPDATE users SET foto_perfil = ? WHERE id = ?", (foto_perfil, user['id']))
-                    db.commit()
-        
-        # Recargar usuario con la foto actualizada
+        create_user(email, password, name, apellidos, age, genero)
         user = find_user_by_email(email)
         login_user(User(
-            user["id"], user["email"], user["name"], user["apellidos"], user["age"], user["genero"],
-            user["telefono"], user["foto_perfil"], user["dni"], user["fecha_nacimiento"],
-            user["nacionalidad"], user["direccion"], user["codigo_postal"], user["ciudad"],
-            user["provincia"], user["nivel_estudios"], user["titulacion"], user["situacion_laboral"],
-            user["idiomas"], user["discapacidad"], user["porcentaje_discapacidad"]
+            user["id"],
+            user["email"],
+            user["name"],
+            user["apellidos"],
+            user["age"],
+            user["genero"],
         ))
         flash("Registro correcto. Sesión iniciada.", "success")
         return redirect(url_for('index'))
@@ -921,84 +790,6 @@ def newsletter_prefs():
 @login_required
 def configuracion_cuenta():
     return render_template("user_configuracion.html")
-
-
-@app.route("/update_profile", methods=["POST"])
-@login_required
-def update_profile():
-    db = get_db()
-    user = current_user
-    
-    # Campos básicos
-    name = request.form.get("name", "").strip()
-    apellidos = request.form.get("apellidos", "").strip()
-    telefono = request.form.get("telefono", "").strip()
-    genero = request.form.get("genero", "").strip()
-    
-    # Nuevos campos profesionales
-    dni = request.form.get("dni", "").strip()
-    fecha_nacimiento = request.form.get("fecha_nacimiento", "").strip()
-    nacionalidad = request.form.get("nacionalidad", "").strip()
-    direccion = request.form.get("direccion", "").strip()
-    codigo_postal = request.form.get("codigo_postal", "").strip()
-    ciudad = request.form.get("ciudad", "").strip()
-    provincia = request.form.get("provincia", "").strip()
-    nivel_estudios = request.form.get("nivel_estudios", "").strip()
-    titulacion = request.form.get("titulacion", "").strip()
-    situacion_laboral = request.form.get("situacion_laboral", "").strip()
-    
-    # Idiomas (múltiples checkboxes convertidos a string separado por comas)
-    idiomas_seleccionados = request.form.getlist("idiomas")
-    otros_idiomas = request.form.get("otros_idiomas", "").strip()
-    if otros_idiomas:
-        idiomas_seleccionados.append(otros_idiomas)
-    idiomas = ", ".join(idiomas_seleccionados) if idiomas_seleccionados else ""
-    
-    # Discapacidad
-    discapacidad = 1 if request.form.get("discapacidad") == "si" else 0
-    porcentaje_discapacidad = int(request.form.get("porcentaje_discapacidad", 0) or 0)
-    
-    # Si seleccionó "Otro" en género, usar el valor del campo de texto
-    if genero == "Otro":
-        otro_genero = request.form.get("otro_genero", "").strip()
-        if otro_genero:
-            genero = otro_genero
-    
-    # Manejar la foto de perfil
-    foto_perfil = user.foto_perfil  # Mantener la actual por defecto
-    if 'foto_perfil' in request.files:
-        file = request.files['foto_perfil']
-        if file and file.filename:
-            # Validar extensión
-            allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
-            filename = file.filename.lower()
-            if '.' in filename and filename.rsplit('.', 1)[1] in allowed_extensions:
-                # Guardar con nombre único
-                from werkzeug.utils import secure_filename
-                filename = secure_filename(f"user_{user.id}_{int(datetime.now().timestamp())}.{filename.rsplit('.', 1)[1]}")
-                filepath = os.path.join('static', 'uploads', 'profiles', filename)
-                
-                # Crear directorio si no existe
-                os.makedirs(os.path.dirname(filepath), exist_ok=True)
-                
-                file.save(filepath)
-                foto_perfil = f"/static/uploads/profiles/{filename}"
-    
-    # Actualizar en la base de datos
-    db.execute("""
-        UPDATE users 
-        SET name = ?, apellidos = ?, telefono = ?, foto_perfil = ?, genero = ?,
-            dni = ?, fecha_nacimiento = ?, nacionalidad = ?, direccion = ?, codigo_postal = ?,
-            ciudad = ?, provincia = ?, nivel_estudios = ?, titulacion = ?, situacion_laboral = ?,
-            idiomas = ?, discapacidad = ?, porcentaje_discapacidad = ?
-        WHERE id = ?
-    """, (name, apellidos, telefono, foto_perfil, genero, dni, fecha_nacimiento, nacionalidad,
-          direccion, codigo_postal, ciudad, provincia, nivel_estudios, titulacion, situacion_laboral,
-          idiomas, discapacidad, porcentaje_discapacidad, user.id))
-    db.commit()
-    
-    flash("Perfil actualizado correctamente", "success")
-    return redirect(url_for('configuracion_cuenta'))
 
 
 @app.route("/marcar_visitada/<int:oposicion_id>", methods=["POST"])
@@ -1184,5 +975,4 @@ def enviar_resumen_ahora():
 if __name__ == '__main__':
     with app.app_context():
         init_db()
-        migrate_db()
     app.run(debug=True)
