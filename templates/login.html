@@ -1,23 +1,21 @@
-{% extends 'base.html' %}
+{% extends 'base.html' %} 
 {% block content %}
-<h2>Entrar</h2>
-<form method="post" class="mt-3" novalidate>
+<h2 class="titulo-registro text-center mb-4">Iniciar sesión</h2>
+<form method="post" class="form-register mt-3 mx-auto" novalidate style="max-width: 500px; border-radius:12px; box-shadow:0 6px 18px rgba(0,0,0,0.1); background:#fff; padding: 2rem;">
   <div class="mb-3">
     <label class="form-label">Email</label>
     <input class="form-control" type="email" name="email" required>
   </div>
-  <div class="mb-3">
+  <div class="mb-3 position-relative">
     <label class="form-label">Contraseña</label>
-    <div class="input-group">
-      <input class="form-control" type="password" name="password" id="password-login" required>
-      <button class="btn btn-outline-secondary" type="button" id="togglePassword-login"
-        onclick="togglePasswordVisibility('login')">
+    <div class="position-relative">
+      <input class="form-control pe-5" type="password" name="password" id="password-login" required>
+      <button type="button" class="btn btn-outline-secondary position-absolute top-0 end-0 h-100" 
+              id="togglePassword-login" onclick="togglePasswordVisibility('login')" style="border-radius:0 8px 8px 0; border-left: none;">
         <i class="bi bi-eye" id="eye-icon-login"></i>
       </button>
     </div>
   </div>
-  <button class="btn btn-primary">Entrar</button>
+  <button class="btn btn-success w-100">Entrar</button>
 </form>
-
-
 {% endblock %}
