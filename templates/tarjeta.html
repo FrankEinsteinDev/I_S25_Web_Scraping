@@ -86,7 +86,17 @@
 
           <td>
             <div class="d-flex justify-content-between align-items-start">
-              <span>{{ row['titulo'] }}</span>
+              <div class="flex-grow-1">
+                {% if row['url_html'] %}
+                <a href="{{ row['url_html'] }}" target="_blank" class="text-decoration-none text-dark d-block" 
+                   title="Ver en el BOE">
+                  {{ row['titulo']|resaltar_titulo|safe }}
+                  <i class="bi bi-box-arrow-up-right ms-1 text-muted small"></i>
+                </a>
+                {% else %}
+                {{ row['titulo']|resaltar_titulo|safe }}
+                {% endif %}
+              </div>
 
               {% if user.is_authenticated %}
               <span style="margin-left: 10px;">
