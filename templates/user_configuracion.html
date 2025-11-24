@@ -375,6 +375,9 @@
                   <div class="input-group">
                     <span class="input-group-text"><i class="bi bi-key"></i></span>
                     <input type="password" class="form-control" id="current_password" name="current_password" required>
+                    <button type="button" class="btn btn-outline-secondary" onclick="togglePasswordVisibility('current')">
+                      <i class="bi bi-eye" id="eye-icon-current"></i>
+                    </button>
                   </div>
                 </div>
 
@@ -387,6 +390,9 @@
                       <span class="input-group-text"><i class="bi bi-lock"></i></span>
                       <input type="password" class="form-control" id="new_password" name="new_password" required
                         minlength="6">
+                      <button type="button" class="btn btn-outline-secondary" onclick="togglePasswordVisibility('new')">
+                        <i class="bi bi-eye" id="eye-icon-new"></i>
+                      </button>
                     </div>
                   </div>
                   <div class="col-md-6">
@@ -395,6 +401,9 @@
                       <span class="input-group-text"><i class="bi bi-lock-fill"></i></span>
                       <input type="password" class="form-control" id="confirm_password" name="confirm_password" required
                         minlength="6">
+                      <button type="button" class="btn btn-outline-secondary" onclick="togglePasswordVisibility('confirm')">
+                        <i class="bi bi-eye" id="eye-icon-confirm"></i>
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -481,6 +490,22 @@
   discapacidadRadios.forEach(radio => {
     radio.addEventListener('change', togglePorcentajeDiscapacidad);
   });
+
+  // Función para mostrar/ocultar contraseñas
+  function togglePasswordVisibility(fieldId) {
+    const passwordField = document.getElementById(fieldId + '_password');
+    const eyeIcon = document.getElementById('eye-icon-' + fieldId);
+
+    if (passwordField.type === 'password') {
+      passwordField.type = 'text';
+      eyeIcon.classList.remove('bi-eye');
+      eyeIcon.classList.add('bi-eye-slash');
+    } else {
+      passwordField.type = 'password';
+      eyeIcon.classList.remove('bi-eye-slash');
+      eyeIcon.classList.add('bi-eye');
+    }
+  }
 </script>
 
 {% endblock %}
