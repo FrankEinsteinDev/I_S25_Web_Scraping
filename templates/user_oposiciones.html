@@ -160,66 +160,11 @@
       </table>
     </div>
 
-<<<<<<< HEAD
-          <td>
-            <small class="d-block fw-bold text-primary">{{ row['departamento'] }}</small>
-            <small class="text-muted">{{ row['control'] }}</small>
-          </td>
-
-          <td class="text-center">
-            <div class="d-flex flex-column gap-2">
-              {% if row['url_html'] %}
-              <a href="{{ row['url_html'] }}" target="_blank" class="btn btn-sm btn-outline-primary w-100"
-                title="Ver en web oficial del BOE">
-                <i class="bi bi-globe"></i> Ver BOE
-              </a>
-              {% endif %}
-
-              {% if row['url_pdf'] %}
-              <a href="{{ row['url_pdf'] }}" target="_blank" class="btn btn-sm btn-danger btn-pdf w-100"
-                data-id="{{ row['id'] }}" title="Descargar PDF oficial">
-                <i class="bi bi-file-earmark-pdf"></i> PDF
-              </a>
-              {% else %}
-              <span class="text-muted small">Sin PDF</span>
-              {% endif %}
-            </div>
-          </td>
-
-          <td class="text-center">{{ row['fecha']|format_date }}</td>
-        </tr>
-        {% else %}
-        <tr>
-          <td colspan="5" class="text-center py-4">
-            <i class="bi bi-search fs-3 text-muted"></i><br>
-            No se encontraron oposiciones con estos filtros.
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-
-  {% if total_pages > 1 %}
-  <nav aria-label="Paginación de oposiciones" class="mt-4">
-    <ul class="pagination justify-content-center">
-      <li class="page-item {% if page <= 1 %}disabled{% endif %}">
-        <a class="page-link"
-          href="{{ url_for('user.oposiciones_vigentes', page=page-1, busqueda=busqueda, provincia=provincia, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta, departamentos=selected_departamentos, orden=orden) }}">←</a>
-      </li>
-
-      {% set start_page = page - 2 if page > 3 else 1 %}
-      {% set end_page = page + 2 if page < total_pages - 2 else total_pages %} {% if start_page> 1 %}
-        <li class="page-item">
-          <a class="page-link"
-            href="{{ url_for('user.oposiciones_vigentes', page=1, busqueda=busqueda, provincia=provincia, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta, departamentos=selected_departamentos, orden=orden) }}">1</a>
-=======
     {% if total_pages > 1 %}
     <nav aria-label="Paginación de oposiciones" class="mt-4">
       <ul class="pagination justify-content-center">
         <li class="page-item {% if page <= 1 %}disabled{% endif %}">
           <a class="page-link" href="{{ url_for('user.oposiciones_vigentes', page=page-1, busqueda=busqueda, provincia=provincia, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta, departamentos=selected_departamentos) }}">←</a>
->>>>>>> 62978c2b899346b89d98bd765f65a5041e935b84
         </li>
 
         {% set start_page = page - 2 if page > 3 else 1 %}
