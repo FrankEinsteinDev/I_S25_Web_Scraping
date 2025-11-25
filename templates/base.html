@@ -140,12 +140,9 @@ Define la estructura general de la aplicación:
       updateHidden(); // Inicializar
     });
   </script>
-
-
-
   <!-- CRIS -->
   <script> // Scripts globales: gestión de fotos de perfil, contraseñas y formularios
-    
+
     // ========== FOTO DE PERFIL ==========
     function setupFotoPerfilPreview(inputId, previewTargetId) {
       const input = document.getElementById(inputId);
@@ -159,7 +156,7 @@ Define la estructura general de la aplicación:
         reader.onload = function (event) {
           const imgHTML = `<img src="${event.target.result}" alt="Foto de perfil" class="rounded-circle" 
                           style="width: 120px; height: 120px; object-fit: cover; border: 3px solid #0d6efd;">`;
-          
+
           if (previewTargetId) {
             // Para register.html con contenedor específico
             const container = document.getElementById(previewTargetId);
@@ -170,7 +167,7 @@ Define la estructura general de la aplicación:
             if (container) {
               const img = container.querySelector('img');
               const placeholder = container.querySelector('.rounded-circle.d-flex');
-              
+
               if (img) {
                 img.src = event.target.result;
               } else if (placeholder) {
@@ -189,14 +186,14 @@ Define la estructura general de la aplicación:
 
 
     // ========== VISIBILIDAD DE CONTRASEÑAS ==========
-    
+
     function togglePasswordVisibility(fieldId) {
       // Soporta múltiples formatos de IDs
       let passwordField = document.getElementById('password-' + fieldId);
       if (!passwordField) {
         passwordField = document.getElementById(fieldId + '_password');
       }
-      
+
       const eyeIcon = document.getElementById('eye-icon-' + fieldId);
 
       if (passwordField && eyeIcon) {
