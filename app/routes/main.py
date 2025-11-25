@@ -63,8 +63,8 @@ def mostrar_departamento(nombre):
     # Filtro por provincia (opcional)
     if provincia:
         sql += " AND provincia = ?"
-        params.append(provincia)
-
+        params.append(provincia) 
+        
     # Orden + paginación
     if orden == "fecha_asc":
         order_direction = "ASC"
@@ -126,6 +126,7 @@ def mostrar_departamento(nombre):
         hoy=hoy,
         visitadas=visitadas,
         favoritas=favoritas,
+        total=total
     )
 
 
