@@ -166,19 +166,26 @@ Define la estructura general de la aplicación:
     });
 
 
-    // Función para mostrar/ocultar contraseñas
+    // Función universal para mostrar/ocultar contraseñas
     function togglePasswordVisibility(fieldId) {
-      const passwordField = document.getElementById(fieldId + '_password');
+      // Soporta múltiples formatos de IDs
+      let passwordField = document.getElementById('password-' + fieldId);
+      if (!passwordField) {
+        passwordField = document.getElementById(fieldId + '_password');
+      }
+      
       const eyeIcon = document.getElementById('eye-icon-' + fieldId);
 
-      if (passwordField.type === 'password') {
-        passwordField.type = 'text';
-        eyeIcon.classList.remove('bi-eye');
-        eyeIcon.classList.add('bi-eye-slash');
-      } else {
-        passwordField.type = 'password';
-        eyeIcon.classList.remove('bi-eye-slash');
-        eyeIcon.classList.add('bi-eye');
+      if (passwordField && eyeIcon) {
+        if (passwordField.type === 'password') {
+          passwordField.type = 'text';
+          eyeIcon.classList.remove('bi-eye');
+          eyeIcon.classList.add('bi-eye-slash');
+        } else {
+          passwordField.type = 'password';
+          eyeIcon.classList.remove('bi-eye-slash');
+          eyeIcon.classList.add('bi-eye');
+        }
       }
     }
   </script>
@@ -195,32 +202,21 @@ Define la estructura general de la aplicación:
     }
 
     // Previsualizar foto de perfil
-    document.getElementById('foto_perfil_register').addEventListener('change', function (e) {
-      const file = e.target.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = function (event) {
-          const previewContainer = document.getElementById('previewContainer');
-          previewContainer.innerHTML = `<img src="${event.target.result}" alt="Preview" class="rounded-circle" style="width: 120px; height: 120px; object-fit: cover; border: 3px solid #0d6efd;">`;
-        };
-        reader.readAsDataURL(file);
-      }
-    });
-
-    // Toggle password visibility
-    function togglePasswordVisibility(formType) {
-      const passwordInput = document.getElementById('password-' + formType);
-      const eyeIcon = document.getElementById('eye-icon-' + formType);
-
-      if (passwordInput.type === 'password') {
-        passwordInput.type = 'text';
-        eyeIcon.classList.remove('bi-eye');
-        eyeIcon.classList.add('bi-eye-slash');
-      } else {
-        passwordInput.type = 'password';
-        eyeIcon.classList.remove('bi-eye-slash');
-        eyeIcon.classList.add('bi-eye');
-      }
+    const fotoPerfilInput = document.getElementById('foto_perfil_register');
+    if (fotoPerfilInput) {
+      fotoPerfilInput.addEventListener('change', function (e) {
+        const file = e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = function (event) {
+            const previewContainer = document.getElementById('previewContainer');
+            if (previewContainer) {
+              previewContainer.innerHTML = `<img src="${event.target.result}" alt="Preview" class="rounded-circle" style="width: 120px; height: 120px; object-fit: cover; border: 3px solid #0d6efd;">`;
+            }
+          };
+          reader.readAsDataURL(file);
+        }
+      });
     }
   </script>
 
