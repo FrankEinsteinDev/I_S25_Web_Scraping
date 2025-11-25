@@ -4,7 +4,7 @@
 {% block content %}
 
 <div class="container py-4 contenido-principal">
-  <a href="{{ url_for('main.index') }}" class="btn btn-secondary btn-volver mb-3">&larr; Volver</a>
+  <a href="{{ url_for('main.index') }}" class="btn btn-primary mb-3">&larr; Volver</a>
   <h2 class="mb-4 text-center hero-title">Oposiciones - {{ departamento }}</h2>
 
   <div class="card mb-4 shadow-sm">
@@ -32,25 +32,17 @@
           </div>
         </div>
 
-        <div class="row g-3">
-          <div class="col-md-4">
-            <label for="fecha_desde" class="form-label">Fecha desde:</label>
-            <input type="date" class="form-control" id="fecha_desde" name="fecha_desde" value="{{ fecha_desde or '' }}">
-          </div>
-          <div class="col-md-4">
-            <label for="fecha_hasta" class="form-label">Fecha hasta:</label>
-            <input type="date" class="form-control" id="fecha_hasta" name="fecha_hasta" value="{{ fecha_hasta or '' }}">
-          </div>
-          <div class="col-md-4 d-flex align-items-end gap-2">
-            <button type="submit" class="btn btn-primary flex-fill">Filtrar</button>
+        <div class="row g-3 mt-2">
+          <div class="col-12 d-flex justify-content-center gap-2">
+            <button type="submit" class="btn btn-primary flex-fill" style="max-width: 150px;">Filtrar</button>
             <a href="{{ url_for('main.mostrar_departamento', nombre=departamento) }}"
-              class="btn btn-outline-secondary flex-fill">Limpiar</a>
+              class="btn btn-outline-secondary flex-fill" style="max-width: 150px;">Limpiar</a>
           </div>
         </div>
       </form>
 
       <div class="mt-3">
-        <small class="text-muted">Total de registros: {{ rows|length }}</small>
+        <small class="text-muted">Total de registros: {{ total }}</small>
       </div>
     </div>
   </div>
@@ -63,17 +55,7 @@
           <th>Título</th>
           <th>Control</th>
           <th>PDF</th>
-          <th>
-            Fecha
-            <a href="{{ url_for('main.mostrar_departamento', nombre=departamento, busqueda=busqueda, provincia=provincia_filtro, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta, orden='fecha_asc') }}" 
-               class="text-white text-decoration-none ms-1" title="Ordenar ascendente">
-              <i class="bi bi-arrow-up{% if orden == 'fecha_asc' %} fw-bold{% endif %}"></i>
-            </a>
-            <a href="{{ url_for('main.mostrar_departamento', nombre=departamento, busqueda=busqueda, provincia=provincia_filtro, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta, orden='fecha_desc') }}" 
-               class="text-white text-decoration-none" title="Ordenar descendente">
-              <i class="bi bi-arrow-down{% if orden == 'fecha_desc' %} fw-bold{% endif %}"></i>
-            </a>
-          </th>
+          <th>Fecha</th>
         </tr>
       </thead>
       <tbody>
@@ -86,17 +68,14 @@
 
           <td>
             <div class="d-flex justify-content-between align-items-start">
-              <div class="flex-grow-1">
-                {% if row['url_html'] %}
-                <a href="{{ row['url_html'] }}" target="_blank" class="text-decoration-none text-dark d-block" 
-                   title="Ver en el BOE">
-                  {{ row['titulo']|resaltar_titulo|safe }}
-                  <i class="bi bi-box-arrow-up-right ms-1 text-muted small"></i>
-                </a>
-                {% else %}
-                {{ row['titulo']|resaltar_titulo|safe }}
-                {% endif %}
-              </div>
+              {% if row['url_html'] %}
+              <a href="{{ row['url_html'] }}" target="_blank" class="text-decoration-none text-dark link-visitada"
+                data-id="{{ row['id'] }}" title="Ver en la web del BOE">
+                {{ row['titulo'] }} <i class="bi bi-box-arrow-up-right text-muted small ms-1"></i>
+              </a>
+              {% else %}
+              <span>{{ row['titulo'] }}</span>
+              {% endif %}
 
               {% if user.is_authenticated %}
               <span style="margin-left: 10px;">
@@ -145,13 +124,13 @@
   <nav aria-label="Paginación de oposiciones" class="mt-4">
     <ul class="pagination justify-content-center">
       <li class="page-item {% if page <= 1 %}disabled{% endif %}">
-        <a class="page-link" href="{{ url_for('main.mostrar_departamento', nombre=departamento, page=page-1, busqueda=busqueda, provincia=provincia_filtro, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta, orden=orden) }}">←</a>
+        <a class="page-link" href="{{ url_for('main.mostrar_departamento', nombre=departamento, page=page-1) }}">←</a>
       </li>
 
       {% set start_page = page - 2 if page > 3 else 1 %}
       {% set end_page = page + 2 if page < total_pages - 2 else total_pages %} {% if start_page> 1 %}
         <li class="page-item">
-          <a class="page-link" href="{{ url_for('main.mostrar_departamento', nombre=departamento, page=1, busqueda=busqueda, provincia=provincia_filtro, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta, orden=orden) }}">1</a>
+          <a class="page-link" href="{{ url_for('main.mostrar_departamento', nombre=departamento, page=1) }}">1</a>
         </li>
         {% if start_page > 2 %}
         <li class="page-item disabled"><span class="page-link">…</span></li>
@@ -160,7 +139,7 @@
 
         {% for p in range(start_page, end_page + 1) %}
         <li class="page-item {% if p == page %}active{% endif %}">
-          <a class="page-link" href="{{ url_for('main.mostrar_departamento', nombre=departamento, page=p, busqueda=busqueda, provincia=provincia_filtro, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta, orden=orden) }}">{{ p
+          <a class="page-link" href="{{ url_for('main.mostrar_departamento', nombre=departamento, page=p) }}">{{ p
             }}</a>
         </li>
         {% endfor %}
@@ -170,96 +149,17 @@
           {% endif %}
           <li class="page-item">
             <a class="page-link"
-              href="{{ url_for('main.mostrar_departamento', nombre=departamento, page=total_pages, busqueda=busqueda, provincia=provincia_filtro, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta, orden=orden) }}">{{ total_pages
+              href="{{ url_for('main.mostrar_departamento', nombre=departamento, page=total_pages) }}">{{ total_pages
               }}</a>
           </li>
           {% endif %}
 
           <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
             <a class="page-link"
-              href="{{ url_for('main.mostrar_departamento', nombre=departamento, page=page+1, busqueda=busqueda, provincia=provincia_filtro, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta, orden=orden) }}">→</a>
+              href="{{ url_for('main.mostrar_departamento', nombre=departamento, page=page+1) }}">→</a>
           </li>
     </ul>
   </nav>
   {% endif %}
 </div>
-
-<script>
-  document.addEventListener('DOMContentLoaded', () => {
-
-    // --- Lógica del botón FAVORITO (Estrella) ---
-    document.querySelectorAll('.toggle-favorito-btn').forEach(button => {
-      button.addEventListener('click', function () {
-        const oposicionId = this.dataset.oposicionId;
-        if (!oposicionId) return;
-
-        const url = `/toggle_favorito/${oposicionId}`;
-        const icon = this.querySelector('i');
-
-        icon.style.transform = "scale(1.2)";
-        setTimeout(() => icon.style.transform = "scale(1)", 200);
-
-        fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-        })
-          .then(response => response.json())
-          .then(data => {
-            if (data.ok) {
-              if (data.is_favorite) {
-                icon.classList.remove('bi-star');
-                icon.classList.add('bi-star-fill');
-                icon.title = "Quitar de Favoritos";
-              } else {
-                icon.classList.remove('bi-star-fill');
-                icon.classList.add('bi-star');
-                icon.title = "Marcar como Favorito";
-              }
-            } else {
-              alert("Error al actualizar favoritos.");
-            }
-          })
-          .catch(error => console.error('Error:', error));
-      });
-    });
-
-    // --- Lógica del botón PDF (Marcar como visitada) ---
-    document.querySelectorAll('.btn-pdf').forEach(btn => {
-      btn.addEventListener('click', function (e) {
-        const id = this.dataset.id;
-        const pdfUrl = this.getAttribute('href');
-
-        // 1) Enviar petición sin bloquear
-        const beaconUrl = `/marcar_visitada/${id}`;
-        if (navigator.sendBeacon) {
-          const payload = JSON.stringify({ ts: new Date().toISOString() });
-          const blob = new Blob([payload], { type: 'application/json' });
-          navigator.sendBeacon(beaconUrl, blob);
-        } else {
-          fetch(beaconUrl, { method: 'POST' }).catch(err => console.warn(err));
-        }
-
-        // 2) Actualizar UI
-        const tr = this.closest('tr');
-        if (tr) {
-          tr.classList.add('visitada-oposicion');
-          const badgesDiv = tr.querySelector('td:nth-child(2) .d-flex.flex-column');
-          if (badgesDiv && !badgesDiv.querySelector('.badge-visitada')) {
-            const span = document.createElement('span');
-            span.className = 'badge-visitada';
-            span.textContent = '🔵 Visitada';
-            badgesDiv.appendChild(span);
-          }
-        }
-
-        // 3) Abrir PDF
-        try {
-          window.open(pdfUrl, '_blank');
-        } catch (err) {
-          window.location.href = pdfUrl;
-        }
-      });
-    });
-  });
-</script>
 {% endblock %}

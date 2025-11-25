@@ -76,7 +76,10 @@ def oposiciones_vigentes():
     por_pagina = 10
     offset = (page - 1) * por_pagina
 
-    selected_departamentos = request.args.getlist("departamentos")
+    # 🔴 CAMBIO: Obtener lista de departamentos filtrando vacíos
+    raw_departamentos = request.args.getlist("departamentos")
+    selected_departamentos = [d for d in raw_departamentos if d.strip()]
+
     busqueda = request.args.get("busqueda", "")
     provincia = request.args.get("provincia", "")
     fecha_desde = request.args.get("fecha_desde", "")
@@ -120,8 +123,10 @@ def oposiciones_vigentes():
         order_direction = "DESC"
     else:
         order_direction = "DESC"  # Por defecto
-    
-    data_query = f"SELECT * {sql_part} ORDER BY fecha {order_direction} LIMIT ? OFFSET ?"
+
+    data_query = (
+        f"SELECT * {sql_part} ORDER BY fecha {order_direction} LIMIT ? OFFSET ?"
+    )
     data_params = params + [por_pagina, offset]
     oposiciones = boe_db.execute(data_query, data_params).fetchall()
 
@@ -171,7 +176,8 @@ def oposiciones_vigentes():
         visitadas=visitadas,
         favoritas=favoritas,
         hoy=datetime.today().strftime("%Y%m%d"),
-        titulo_pagina="📢 Oposiciones Vigentes",
+        titulo_pagina=f"📢 Oposiciones Vigentes de {user.name} {user.apellidos}",
+        total=total,
     )
 
 
@@ -237,35 +243,8 @@ def update_profile():
     name = request.form.get("name", "").strip()
     apellidos = request.form.get("apellidos", "").strip()
     telefono = request.form.get("telefono", "").strip()
-    genero = request.form.get("genero", "").strip()
-
-    dni = request.form.get("dni", "").strip()
-    fecha_nacimiento = request.form.get("fecha_nacimiento", "").strip()
-    nacionalidad = request.form.get("nacionalidad", "").strip()
-    direccion = request.form.get("direccion", "").strip()
-    codigo_postal = request.form.get("codigo_postal", "").strip()
-    ciudad = request.form.get("ciudad", "").strip()
-    provincia = request.form.get("provincia", "").strip()
     nivel_estudios = request.form.get("nivel_estudios", "").strip()
     titulacion = request.form.get("titulacion", "").strip()
-    situacion_laboral = request.form.get("situacion_laboral", "").strip()
-
-    idiomas_seleccionados = request.form.getlist("idiomas")
-    otros_idiomas = request.form.get("otros_idiomas", "").strip()
-    if otros_idiomas:
-        idiomas_seleccionados.append(otros_idiomas)
-    idiomas = ", ".join(idiomas_seleccionados) if idiomas_seleccionados else ""
-
-    discapacidad = 1 if request.form.get("discapacidad") == "si" else 0
-    porcentaje_discapacidad = int(
-        request.form.get("porcentaje_discapacidad", 0) or 0
-    )
-
-    if genero == "Otro":
-        otro_genero = request.form.get("otro_genero", "").strip()
-        if otro_genero:
-            genero = otro_genero
-
     foto_perfil = user.foto_perfil
     if "foto_perfil" in request.files:
         file = request.files["foto_perfil"]
@@ -288,10 +267,8 @@ def update_profile():
     db.execute(
         """
         UPDATE users 
-        SET name = ?, apellidos = ?, telefono = ?, foto_perfil = ?, genero = ?,
-            dni = ?, fecha_nacimiento = ?, nacionalidad = ?, direccion = ?, codigo_postal = ?,
-            ciudad = ?, provincia = ?, nivel_estudios = ?, titulacion = ?, situacion_laboral = ?,
-            idiomas = ?, discapacidad = ?, porcentaje_discapacidad = ?
+        SET name = ?, apellidos = ?, telefono = ?, foto_perfil = ?,
+            nivel_estudios = ?, titulacion =?
         WHERE id = ?
     """,
         (
@@ -299,20 +276,8 @@ def update_profile():
             apellidos,
             telefono,
             foto_perfil,
-            genero,
-            dni,
-            fecha_nacimiento,
-            nacionalidad,
-            direccion,
-            codigo_postal,
-            ciudad,
-            provincia,
             nivel_estudios,
             titulacion,
-            situacion_laboral,
-            idiomas,
-            discapacidad,
-            porcentaje_discapacidad,
             user.id,
         ),
     )
@@ -328,7 +293,8 @@ def marcar_visitada(oposicion_id):
     user_id = current_user.id
     registrar_visita(user_id, oposicion_id)
     print(
-        f"🟢 Registro de visita recibido: user={user_id}, oposicion_id={oposicion_id}")
+        f"🟢 Registro de visita recibido: user={user_id}, oposicion_id={oposicion_id}"
+    )
     return jsonify({"ok": True})
 
 
@@ -347,6 +313,28 @@ def oposiciones_favoritas():
     users_db = get_users_db()
     user = current_user
 
+    # 🟢 CORRECCIÓN: Obtener datos para los filtros también en Favoritas
+    desde = (datetime.today() - timedelta(days=30)).strftime("%Y%m%d")
+
+    # Departamentos
+    departamentos = boe_db.execute(
+        """
+        SELECT DISTINCT departamento 
+        FROM oposiciones 
+        WHERE fecha >= ? AND departamento IS NOT NULL 
+        ORDER BY departamento
+        """,
+        (desde,),
+    ).fetchall()
+
+    # Provincias
+    provincias = boe_db.execute(
+        "SELECT DISTINCT provincia FROM oposiciones "
+        "WHERE provincia IS NOT NULL ORDER BY provincia"
+    ).fetchall()
+
+    # --- Fin datos filtros ---
+
     fav_rows = users_db.execute(
         "SELECT oposicion_id, fecha_favorito FROM favoritas WHERE user_id = ?",
         (user.id,),
@@ -356,9 +344,9 @@ def oposiciones_favoritas():
         return render_template(
             "user_oposiciones.html",
             oposiciones=[],
-            departamentos=[],
+            departamentos=departamentos,  # 🟢 Pasamos departamentos
             selected_departamentos=[],
-            provincias=[],
+            provincias=provincias,  # 🟢 Pasamos provincias
             busqueda="",
             provincia_filtro="",
             fecha_desde="",
@@ -381,8 +369,7 @@ def oposiciones_favoritas():
         opos_ids,
     ).fetchall()
 
-    fecha_por_id = {row["oposicion_id"]: row["fecha_favorito"]
-                    for row in fav_rows}
+    fecha_por_id = {row["oposicion_id"]: row["fecha_favorito"] for row in fav_rows}
 
     oposiciones_ordenadas = sorted(
         oposiciones,
@@ -401,9 +388,9 @@ def oposiciones_favoritas():
     return render_template(
         "user_oposiciones.html",
         oposiciones=oposiciones_ordenadas,
-        departamentos=[],
+        departamentos=departamentos,  # 🟢 Pasamos departamentos
         selected_departamentos=[],
-        provincias=[],
+        provincias=provincias,  # 🟢 Pasamos provincias
         busqueda="",
         provincia_filtro="",
         fecha_desde="",
