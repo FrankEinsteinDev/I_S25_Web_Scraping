@@ -156,6 +156,12 @@ html[data-theme="dark"] .navbar .dropdown-menu .dropdown-item:hover {
 .card-title { color:#002b5b; font-weight:600; margin-bottom:0.5rem; transition:color 0.3s;}
 .card:hover .card-title { color:#004aad; }
 
+
+main, .content-wrapper, .container, .container-fluid {
+    padding-bottom: 40px !important;
+}
+
+
 /* =========================================================
    NUEVA OPOSICIÓN
 ========================================================= */
@@ -510,4 +516,5 @@ html[data-theme="dark"] .btn-outline-secondary:hover {
     border-radius: 8px;
     padding: 3px 8px;
     font-size: 0.8rem;
-    margin-left: 6px;
+    margin-left: 6px ;
+}
