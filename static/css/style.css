@@ -835,3 +835,37 @@ html[data-theme="dark"] .btn-primary .btn-outline-secondary {
     font-size: 0.8rem;
     margin-left: 6px;
 }
+
+/* =====  Modo oscuro: corregir fondo del formulario de login ===== */
+html[data-theme="dark"] form.form-register[style] {
+    background-color: #27293d !important;
+    color: #e5e7eb !important;
+}
+html[data-theme="dark"] form.form-register[style] * {
+    color: #e5e7eb !important;
+}
+
+/* === MODO OSCURO — Badge + paginación) === */
+html[data-theme="dark"] .badge.bg-light.text-dark,
+html[data-theme="dark"] .pagination .page-link {
+    background: var(--bg-input) !important;
+    color: var(--color-text) !important;
+    border-color: var(--bg-card-border) !important;
+}
+
+html[data-theme="dark"] .pagination .page-item.active .page-link {
+    background: var(--color-accent) !important;
+    border-color: var(--color-accent) !important;
+    color: #fff !important;
+}
+
+html[data-theme="dark"] .form-select {
+    background-color: #2c2f47 !important;
+    color: #e5e7eb !important;
+    border-color: #3b3f54 !important;
+}
+
+/* Dropdown departamentos modo oscuro ultra-compacto */
+html[data-theme="dark"] .dropdown-menu,
+html[data-theme="dark"] .dropdown-menu[style] { background:#2c2f47 !important; color:#e5e7eb !important; border-color:#3b3f54 !important; }
+html[data-theme="dark"] .dropdown-menu .form-check-input { accent-color:#60a5fa !important; background:transparent !important; border-color:#4b5166 !important; }
