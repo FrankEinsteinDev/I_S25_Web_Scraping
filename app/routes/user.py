@@ -76,7 +76,10 @@ def oposiciones_vigentes():
     por_pagina = 10
     offset = (page - 1) * por_pagina
 
-    selected_departamentos = request.args.getlist("departamentos")
+    # 🔴 CAMBIO: Obtener lista de departamentos filtrando vacíos
+    raw_departamentos = request.args.getlist("departamentos")
+    selected_departamentos = [d for d in raw_departamentos if d.strip()]
+
     busqueda = request.args.get("busqueda", "")
     provincia = request.args.get("provincia", "")
     fecha_desde = request.args.get("fecha_desde", "")
@@ -171,7 +174,7 @@ def oposiciones_vigentes():
         visitadas=visitadas,
         favoritas=favoritas,
         hoy=datetime.today().strftime("%Y%m%d"),
-        titulo_pagina="📢 Oposiciones Vigentes",
+        titulo_pagina=f"📢 Oposiciones Vigentes de {user.name} {user.apellidos}",
         total=total
     )
 
@@ -348,6 +351,28 @@ def oposiciones_favoritas():
     users_db = get_users_db()
     user = current_user
 
+    # 🟢 CORRECCIÓN: Obtener datos para los filtros también en Favoritas
+    desde = (datetime.today() - timedelta(days=30)).strftime("%Y%m%d")
+    
+    # Departamentos
+    departamentos = boe_db.execute(
+        """
+        SELECT DISTINCT departamento 
+        FROM oposiciones 
+        WHERE fecha >= ? AND departamento IS NOT NULL 
+        ORDER BY departamento
+        """,
+        (desde,),
+    ).fetchall()
+
+    # Provincias
+    provincias = boe_db.execute(
+        "SELECT DISTINCT provincia FROM oposiciones "
+        "WHERE provincia IS NOT NULL ORDER BY provincia"
+    ).fetchall()
+
+    # --- Fin datos filtros ---
+
     fav_rows = users_db.execute(
         "SELECT oposicion_id, fecha_favorito FROM favoritas WHERE user_id = ?",
         (user.id,),
@@ -357,9 +382,9 @@ def oposiciones_favoritas():
         return render_template(
             "user_oposiciones.html",
             oposiciones=[],
-            departamentos=[],
+            departamentos=departamentos, # 🟢 Pasamos departamentos
             selected_departamentos=[],
-            provincias=[],
+            provincias=provincias,       # 🟢 Pasamos provincias
             busqueda="",
             provincia_filtro="",
             fecha_desde="",
@@ -402,9 +427,9 @@ def oposiciones_favoritas():
     return render_template(
         "user_oposiciones.html",
         oposiciones=oposiciones_ordenadas,
-        departamentos=[],
+        departamentos=departamentos, # 🟢 Pasamos departamentos
         selected_departamentos=[],
-        provincias=[],
+        provincias=provincias,       # 🟢 Pasamos provincias
         busqueda="",
         provincia_filtro="",
         fecha_desde="",
