@@ -8,7 +8,7 @@ Define la estructura general de la aplicación:
 -->
 
 <!DOCTYPE html>
-<html lang="es" data-theme="{{ theme }}">   
+<html lang="es" data-theme="{{ theme }}">
 
 <head>
   <meta charset="UTF-8">
@@ -122,7 +122,68 @@ Define la estructura general de la aplicación:
     <p>© 2025 Oposiciones BOE</p>
   </footer>
 
-  <script>
+  <script> // Script para gestionar el filtro de departamentos en las alertas
+    document.addEventListener("DOMContentLoaded", function () {
+      const hiddenInput = document.getElementById("departamento_filtro");
+      const checkboxes = document.querySelectorAll(".dept-check");
+
+      function updateHidden() {
+        const values = [...checkboxes]
+          .filter(c => c.checked)
+          .map(c => c.value);
+
+        hiddenInput.value = JSON.stringify(values);
+      }
+
+      checkboxes.forEach(cb => cb.addEventListener("change", updateHidden));
+
+      updateHidden(); // Inicializar
+    });
+  </script>
+
+
+
+  <!-- CRIS -->
+  <script> // Script para la gestión de la foto de perfil y visibilidad de contraseñas
+    // Previsualizar foto de perfil antes de subir
+    document.getElementById('foto_perfil').addEventListener('change', function (e) {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function (event) {
+          const container = document.querySelector('.position-relative');
+          const img = container.querySelector('img');
+          const placeholder = container.querySelector('.rounded-circle.d-flex');
+
+          if (img) {
+            img.src = event.target.result;
+          } else if (placeholder) {
+            placeholder.outerHTML = `<img src="${event.target.result}" alt="Foto de perfil" class="rounded-circle" style="width: 120px; height: 120px; object-fit: cover; border: 3px solid #0d6efd;">`;
+          }
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+
+    // Función para mostrar/ocultar contraseñas
+    function togglePasswordVisibility(fieldId) {
+      const passwordField = document.getElementById(fieldId + '_password');
+      const eyeIcon = document.getElementById('eye-icon-' + fieldId);
+
+      if (passwordField.type === 'password') {
+        passwordField.type = 'text';
+        eyeIcon.classList.remove('bi-eye');
+        eyeIcon.classList.add('bi-eye-slash');
+      } else {
+        passwordField.type = 'password';
+        eyeIcon.classList.remove('bi-eye-slash');
+        eyeIcon.classList.add('bi-eye');
+      }
+    }
+  </script>
+  <script> // Lógica para el formulario de registro, visibilidad contraseña y foto de perfil
+    // Generar opciones de edad (18-67 años)
     const select = document.getElementById("edad");
     if (select) {
       for (let i = 18; i <= 67; i++) {
@@ -132,205 +193,121 @@ Define la estructura general de la aplicación:
         select.appendChild(option);
       }
     }
-  </script>
-  <script>
-    function togglePasswordVisibility(formType) {
-      const passwordInput = document.getElementById('password-' + formType);
-      const eyeIcon = document.getElementById('eye-icon-' + formType);
 
-      if (passwordInput.type === 'password') {
-        passwordInput.type = 'text';
-        eyeIcon.classList.remove('bi-eye');
-        eyeIcon.classList.add('bi-eye-slash');
-      } else {
-        passwordInput.type = 'password';
-        eyeIcon.classList.remove('bi-eye-slash');
-        eyeIcon.classList.add('bi-eye');
+    // Previsualizar foto de perfil
+    document.getElementById('foto_perfil_register').addEventListener('change', function (e) {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function (event) {
+          const previewContainer = document.getElementById('previewContainer');
+          previewContainer.innerHTML = `<img src="${event.target.result}" alt="Preview" class="rounded-circle" style="width: 120px; height: 120px; object-fit: cover; border: 3px solid #0d6efd;">`;
+        };
+        reader.readAsDataURL(file);
       }
-    }
-  </script>
-  <script>
-    function togglePasswordVisibility(formType) {
-      const passwordInput = document.getElementById('password-' + formType);
-      const eyeIcon = document.getElementById('eye-icon-' + formType);
-
-      if (passwordInput.type === 'password') {
-        passwordInput.type = 'text';
-        eyeIcon.classList.remove('bi-eye');
-        eyeIcon.classList.add('bi-eye-slash');
-      } else {
-        passwordInput.type = 'password';
-        eyeIcon.classList.remove('bi-eye-slash');
-        eyeIcon.classList.add('bi-eye');
-      }
-    }
-  </script>
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-
-      // --- Lógica del botón FAVORITO (Estrella) ---
-      document.querySelectorAll('.toggle-favorito-btn').forEach(button => {
-        button.addEventListener('click', function () {
-          const oposicionId = this.dataset.oposicionId;
-          const url = `/toggle_favorito/${oposicionId}`;
-          const icon = this.querySelector('i');
-
-          fetch(url, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-          })
-            .then(response => response.json())
-            .then(data => {
-              if (data.ok) {
-                // Actualizar el estado del icono a Bootstrap Icons
-                if (data.is_favorite) {
-                  icon.classList.remove('bi-star');
-                  icon.classList.add('bi-star-fill');
-                  icon.title = "Quitar de Favoritos";
-                } else {
-                  icon.classList.remove('bi-star-fill');
-                  icon.classList.add('bi-star');
-                  icon.title = "Marcar como Favorito";
-                }
-              } else {
-                alert("Error al actualizar favoritos.");
-              }
-            })
-            .catch(error => {
-              console.error('Error:', error);
-              alert("Error de conexión al servidor.");
-            });
-        });
-      });
-
-      // --- Lógica del botón PDF (Marcar como visitada) ---
-      document.querySelectorAll('.btn-pdf').forEach(btn => {
-        btn.addEventListener('click', function (e) {
-          e.preventDefault();
-
-          const id = this.dataset.id;
-          const pdfUrl = this.getAttribute('href');
-          const tr = this.closest('tr');
-
-          // 1) Intentamos usar sendBeacon (enviar petición sin bloquear la navegación)
-          const beaconUrl = `/marcar_visitada/${id}`;
-          let beaconSent = false;
-
-          try {
-            if (navigator.sendBeacon) {
-              const payload = JSON.stringify({ ts: new Date().toISOString() });
-              const blob = new Blob([payload], { type: 'application/json' });
-              beaconSent = navigator.sendBeacon(beaconUrl, blob);
-            }
-          } catch (err) {
-            console.warn('sendBeacon falló:', err);
-            beaconSent = false;
-          }
-
-          // 2) Si sendBeacon no está disponible, hacemos fetch en background
-          if (!beaconSent) {
-            fetch(beaconUrl, {
-              method: 'POST',
-              headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/json' },
-              body: JSON.stringify({ ts: new Date().toISOString() })
-            }).then(resp => {
-              if (!resp.ok) console.warn('marcar_visitada respondió', resp.status);
-            }).catch(err => console.warn('Error fetch marcar_visitada:', err));
-          }
-
-          // 3) Actualizar UI inmediatamente (añadir clase y badge)
-          if (tr) {
-            tr.classList.add('visitada-oposicion');
-            const tituloCell = tr.querySelector('td:nth-child(2)');
-            if (tituloCell && !tituloCell.querySelector('.badge-visitada')) {
-              const span = document.createElement('span');
-              span.className = 'badge-visitada ms-2';
-              span.textContent = '🔵 Visitada';
-              tituloCell.appendChild(span);
-            }
-          }
-
-          // 4) Abrir PDF en nueva pestaña (no bloqueante)
-          try {
-            window.open(pdfUrl, '_blank');
-          } catch (err) {
-            window.location.href = pdfUrl;
-          }
-        });
-      });
     });
+
+    // Toggle password visibility
+    function togglePasswordVisibility(formType) {
+      const passwordInput = document.getElementById('password-' + formType);
+      const eyeIcon = document.getElementById('eye-icon-' + formType);
+
+      if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        eyeIcon.classList.remove('bi-eye');
+        eyeIcon.classList.add('bi-eye-slash');
+      } else {
+        passwordInput.type = 'password';
+        eyeIcon.classList.remove('bi-eye-slash');
+        eyeIcon.classList.add('bi-eye');
+      }
+    }
   </script>
+
   <script>
     document.addEventListener('DOMContentLoaded', () => {
 
-      // --- Lógica del botón FAVORITO (Estrella) ---
+      // 1️⃣ Lógica del botón FAVORITO (Estrella)
       document.querySelectorAll('.toggle-favorito-btn').forEach(button => {
-        button.addEventListener('click', function () {
+        button.addEventListener('click', function() {
           const oposicionId = this.dataset.oposicionId;
+          if (!oposicionId) return;
+
           const url = `/toggle_favorito/${oposicionId}`;
           const icon = this.querySelector('i');
 
-          // Efecto visual inmediato
+          // Efecto visual inmediato (feedback)
           icon.style.transform = "scale(1.2)";
           setTimeout(() => icon.style.transform = "scale(1)", 200);
 
           fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-          })
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+            })
             .then(response => response.json())
             .then(data => {
               if (data.ok) {
+                // Cambiar clase del icono según estado
                 if (data.is_favorite) {
-                  icon.classList.remove('bi-star');
-                  icon.classList.add('bi-star-fill');
+                  icon.classList.replace('bi-star', 'bi-star-fill');
                   icon.title = "Quitar de Favoritos";
                 } else {
-                  icon.classList.remove('bi-star-fill');
-                  icon.classList.add('bi-star');
+                  icon.classList.replace('bi-star-fill', 'bi-star');
                   icon.title = "Marcar como Favorito";
                 }
               } else {
-                alert("Error al actualizar favoritos.");
+                console.warn("Error al actualizar favoritos en servidor.");
               }
             })
-            .catch(error => console.error('Error:', error));
+            .catch(error => console.error('Error conexión:', error));
         });
       });
 
-      // --- Lógica del botón PDF (Marcar como visitada) ---
-      document.querySelectorAll('.btn-pdf').forEach(btn => {
-        btn.addEventListener('click', function (e) {
+      // 2️⃣ Lógica unificada: Botón PDF y Enlace Título (Marcar como Visitada)
+      document.querySelectorAll('.btn-pdf, .link-visitada').forEach(element => {
+        element.addEventListener('click', function(e) {
+          // NO usamos preventDefault() para permitir que el enlace se abra en nueva pestaña
+          
           const id = this.dataset.id;
+          // Buscamos la fila de la tabla más cercana
           const tr = this.closest('tr');
 
+          if (!id) return;
+
           const beaconUrl = `/marcar_visitada/${id}`;
+
+          // A) Enviar petición en segundo plano (sendBeacon es ideal para cambios de página)
           if (navigator.sendBeacon) {
             const payload = JSON.stringify({ ts: new Date().toISOString() });
             const blob = new Blob([payload], { type: 'application/json' });
             navigator.sendBeacon(beaconUrl, blob);
           } else {
+            // Fallback para navegadores antiguos
             fetch(beaconUrl, { method: 'POST' }).catch(err => console.warn(err));
           }
 
+          // B) Actualizar la interfaz inmediatamente (Feedback visual)
           if (tr) {
             tr.classList.add('visitada-oposicion');
+
+            // Buscamos el contenedor de los badges (la columna vertical)
             const badgesDiv = tr.querySelector('td:nth-child(2) .d-flex.flex-column');
 
+            // Si existe el contenedor y no tiene ya el badge, lo creamos
             if (badgesDiv && !badgesDiv.querySelector('.badge-visitada')) {
               const span = document.createElement('span');
-              span.className = 'badge bg-info text-dark border border-info badge-visitada';
+              span.className = 'badge-visitada'; // Clase CSS definida en styles.css
               span.textContent = '🔵 Visitada';
               badgesDiv.appendChild(span);
             }
           }
         });
       });
+
     });
   </script>
-
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 
