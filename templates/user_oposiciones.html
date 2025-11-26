@@ -96,16 +96,12 @@
           <th>
             Fecha
             <div class="btn-group btn-group-sm ms-2" role="group">
-              <a href="{{ url_for('user.oposiciones_vigentes', page=page, busqueda=busqueda, 
-                         provincia_filtro=provincia_filtro, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta,
-                         departamentos=request.args.getlist('departamentos'), orden='fecha_asc') }}" 
+              <a href="{% if es_favoritas %}{{ url_for('user.oposiciones_favoritas', orden='fecha_asc') }}{% else %}{{ url_for('user.oposiciones_vigentes', page=page, busqueda=busqueda, provincia_filtro=provincia_filtro, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta, departamentos=request.args.getlist('departamentos'), orden='fecha_asc') }}{% endif %}" 
                  class="btn btn-sm {% if orden == 'fecha_asc' %}btn-light fw-bold{% else %}btn-outline-light{% endif %}" 
                  title="Ordenar ascendente">
                 <i class="bi bi-arrow-up"></i>
               </a>
-              <a href="{{ url_for('user.oposiciones_vigentes', page=page, busqueda=busqueda, 
-                         provincia_filtro=provincia_filtro, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta,
-                         departamentos=request.args.getlist('departamentos'), orden='fecha_desc') }}" 
+              <a href="{% if es_favoritas %}{{ url_for('user.oposiciones_favoritas', orden='fecha_desc') }}{% else %}{{ url_for('user.oposiciones_vigentes', page=page, busqueda=busqueda, provincia_filtro=provincia_filtro, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta, departamentos=request.args.getlist('departamentos'), orden='fecha_desc') }}{% endif %}" 
                  class="btn btn-sm {% if orden == 'fecha_desc' %}btn-light fw-bold{% else %}btn-outline-light{% endif %}" 
                  title="Ordenar descendente">
                 <i class="bi bi-arrow-down"></i>
