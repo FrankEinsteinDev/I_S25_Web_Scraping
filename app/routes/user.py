@@ -187,7 +187,7 @@ def newsletter_prefs():
 
     if request.method == "POST":
         alerta_diaria = 1 if request.form.get("alerta_diaria") else 0
-        # 🔴 ELIMINADO: ya no capturamos alerta_favoritos
+        # 🔴 ELIMINADO: ya no capturamos alerta_favoritos del formulario
 
         # Capturar lista múltiple de departamentos
         seleccionados = request.form.getlist("departamentos")
@@ -197,7 +197,8 @@ def newsletter_prefs():
         else:
             dept_string = ",".join(seleccionados)
 
-        # 🔴 ACTUALIZADO: Solo guardamos alerta_diaria y filtros
+        # 🔴 ACTUALIZADO: La SQL ya no guarda alerta_favoritos explícitamente
+        # (Se usará el valor por defecto de la tabla, que es 0)
         users_db.execute(
             """
             INSERT OR REPLACE INTO suscripciones (user_id, alerta_diaria, departamento_filtro)
@@ -216,7 +217,6 @@ def newsletter_prefs():
     if not prefs:
         prefs = {
             "alerta_diaria": 0,
-            # "alerta_favoritos": 0,  <-- Eliminado del valor por defecto
             "departamento_filtro": "Todos",
         }
 
@@ -342,6 +342,7 @@ def oposiciones_favoritas():
     users_db = get_users_db()
     user = current_user
 
+    # Filtros para la vista de favoritas
     desde = (datetime.today() - timedelta(days=30)).strftime("%Y%m%d")
     departamentos = boe_db.execute(
         "SELECT DISTINCT departamento FROM oposiciones WHERE fecha >= ? AND departamento IS NOT NULL ORDER BY departamento",
