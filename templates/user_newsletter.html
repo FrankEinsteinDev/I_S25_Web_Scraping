@@ -23,20 +23,11 @@
                    {% if prefs['alerta_diaria'] %}checked{% endif %}>
             <label class="form-check-label" for="alerta_diaria">
               <strong>Resumen diario</strong>
-              <div class="text-muted small">Recibe un email cada mañana con las nuevas oposiciones.</div>
+              <div class="text-muted small">Recibe un email cada mañana con las nuevas oposiciones publicadas.</div>
             </label>
           </div>
 
           <hr class="my-4">
-
-          <div class="form-check form-switch mb-3 text-start">
-            <input class="form-check-input" type="checkbox" id="alerta_favoritos" name="alerta_favoritos" 
-                   {% if prefs['alerta_favoritos'] %}checked{% endif %}>
-            <label class="form-check-label" for="alerta_favoritos">
-              <strong>Cambios en mis favoritas</strong>
-              <div class="text-muted small">Avísame si hay actualizaciones en mis departamentos seleccionados.</div>
-            </label>
-          </div>
 
           <div class="mb-3 text-start">
             <label class="form-label fw-bold">Filtrar resumen por departamento:</label>
