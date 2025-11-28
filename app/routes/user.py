@@ -440,10 +440,10 @@ def enviar_resumen_ahora():
         else "Todos"
     )
 
-    fecha_limite = (datetime.now() - timedelta(days=7)).strftime("%Y%m%d")
-
+    fecha_busqueda = datetime.now().strftime("%Y%m%d")
+    
     sql = "SELECT * FROM oposiciones WHERE fecha >= ?"
-    params = [fecha_limite]
+    params = [fecha_busqueda]
 
     # Lógica de limpieza y múltiples departamentos
     if dept_filter_str and dept_filter_str != "Todos":
@@ -472,6 +472,6 @@ def enviar_resumen_ahora():
             traceback.print_exc()
             flash(f"❌ Error al enviar email: {e}", "danger")
     else:
-        flash(f"⚠️ No se encontraron oposiciones recientes para: {dept_filter_str}", "warning")
+        flash(f"⚠️ No se encontraron oposiciones publicadas hoy para: {dept_filter_str}", "warning")
 
     return redirect(url_for("user.newsletter_prefs"))
